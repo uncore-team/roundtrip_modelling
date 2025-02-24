@@ -7,3 +7,6 @@ using namespace std;
 // Constructor
 Estimator::Estimator() {
 }
+
+Estimator::~Estimator() {
+}

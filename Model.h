@@ -2,9 +2,12 @@
 #define MODEL_H
 
 #include <limits>
-#include <cmath>
 
 using namespace std;
+
+const double eps = numeric_limits<double>::epsilon();
+const double Inf = numeric_limits<double>::max();
+const double NaN = numeric_limits<double>::quiet_NaN();
 
 enum ModelType {
     None = 0,
@@ -16,21 +19,21 @@ enum ModelType {
 // Structure to hold model coefficients and type
 struct ModelParams {
     // LogLogistic (3-params) model
-    double a = NAN;
-    double b = NAN;
-    double c = NAN;
+    double a = NaN;
+    double b = NaN;
+    double c = NaN;
     //  LogNormal (3-params) model
-    double gamma = NAN;  // Gamma
-    double mu = NAN;     // Mean
-    double sigma = NAN;  // Standard deviation
+    double gamma = NaN;  // Gamma
+    double mu = NaN;     // Mean
+    double sigma = NaN;  // Standard deviation
     // Exponential model
-    double alpha = NAN;  // location of the distribution 
-    double beta = NAN;  // 1/beta mean of the distribution
+    double alpha = NaN;  // location of the distribution 
+    double beta = NaN;  // 1/beta mean of the distribution
 };
 
 struct GoF { // Goodness of fit
-    double stat;  // Statistic
-    double thresh;  // Threshold
+    double stat = NaN;  // Statistic
+    double thresh = NaN;  // Threshold
 };
 
 // Structure to represent a statistical model
@@ -42,7 +45,7 @@ struct Model {
 };
 
 struct State {
-    vector<double> samples;
+    vector<double> samples = {};  // samples
     Model model;
 };
 

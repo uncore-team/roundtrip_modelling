@@ -25,6 +25,7 @@ vector<double> read_data(const string& filename) {
 }
 
 string model_to_string(ModelType model_type) {
+
     switch(model_type) {
         case ModelType::LL3: return "LL3"; break;
         case ModelType::LN3: return "LN3"; break;
@@ -35,21 +36,32 @@ string model_to_string(ModelType model_type) {
 }
 
 void print_model(const Model& model) {
+
     if (!model.defined) {
-        cout << "Model is not defined." << endl;
+        printf("Model is not defined.\n");
         return;
     }
 
-    cout << "Model Type: " << model_to_string(model.type) << endl;
-    cout << "Coefficients:" << endl;
-    cout << "a: " << model.params.a << endl;
-    cout << "b: " << model.params.b << endl;
-    cout << "c: " << model.params.c << endl;
-    cout << "alpha: " << model.params.alpha << endl;
-    cout << "beta: " << model.params.beta << endl;
-    cout << "gamma: " << model.params.gamma << endl;
-    cout << "mu: " << model.params.mu << endl;
-    cout << "sigma: " << model.params.sigma << endl;
+    printf("\nModel Type: %s", model_to_string(model.type).c_str());
+    switch(model.type) {
+        case ModelType::LL3:
+            printf("\n\ta: %.6f", model.params.a);
+            printf("\n\tb: %.6f", model.params.b);
+            printf("\n\tc: %.6f", model.params.c);
+            break;
+        case ModelType::LN3:
+            printf("\n\tgamma: %.6f", model.params.gamma);
+            printf("\n\tmu: %.6", model.params.mu);
+            printf("\n\tsigma: %.6f", model.params.sigma);
+            break;
+        case ModelType::EXP:
+            printf("\n\talpha: %.6f", model.params.alpha);
+            printf("\n\tbeta: %.6f", model.params.beta);
+            break;
+        case ModelType::None:
+            printf("Model is not defined.\n");
+            break;
+    }
 }
 
 int main() {
@@ -61,24 +73,34 @@ int main() {
     // Prepare the estimators
     vector<ModelType> model_types = {ModelType::EXP};
 
-    // Initilize the Online RANSAC algorithm
-    OnlineRANSAC onlineRANSAC(20, (unsigned)INFINITY, false, false, false, model_types);
-
     int len = samples.size();
+    for(int model_preserving = 0; model_preserving < 3; ++model_preserving) {
+        for (int sample_sliding = 0; sample_sliding < 2; ++sample_sliding) {
+            for (int data_preserving = 0; data_preserving < 2; ++data_preserving) {
+                cout << endl << "model_preserving[" << model_preserving << "] "
+                     << "sample_sliding[" << sample_sliding << "] "
+                     << "data_preserving[" << data_preserving << "]";
 
-    for (int f = 0; f < len; ++f) {
+                // Initilize the Online RANSAC algorithm
+                OnlineRANSAC onlineRANSAC(
+                    20, (unsigned)Inf,
+                    model_preserving, sample_sliding, data_preserving,
+                    model_types
+                );
+                for (int f = 0; f < len; ++f) {
 
-//        auto t1 = chrono::high_resolution_clock::now();
-        auto exitbranch = onlineRANSAC.update(samples[f]);
-        cout << "#" << (f+1) << "exitbranch[" << exitbranch << "]" << endl;
-//        auto t2 = chrono::high_resolution_clock::now();
-//        chrono::duration<double> ct = t2 - t1;
+            //        auto t1 = chrono::high_resolution_clock::now();
+                    auto exitbranch = onlineRANSAC.update(samples[f]);
+                    // cout << "#" << (f+1) << " exitbranch[" << exitbranch << "]" << endl;
+            //        auto t2 = chrono::high_resolution_clock::now();
+            //        chrono::duration<double> ct = t2 - t1;
+                }
+
+                // Get the final model
+                print_model(onlineRANSAC.get_model());       
+            }
+        }
     }
-
-    // Get the final model
-    Model model = onlineRANSAC.get_model();
-
-    print_model(model);
 
     return 0;
 }

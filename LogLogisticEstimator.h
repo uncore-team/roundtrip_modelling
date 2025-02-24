@@ -1,5 +1,5 @@
-#ifndef EXPONENTIAL_ESTIMATOR_H
-#define EXPONENTIAL_ESTIMATOR_H
+#ifndef LOGLOGISTIC_ESTIMATOR_H
+#define LOGLOGISTIC_ESTIMATOR_H
 
 #include <algorithm>
 #include <cmath>
@@ -12,13 +12,13 @@
 
 using namespace std;
 
-// ExponentialEstimator class for fitting and assessing an exponential model to data.
-class ExponentialEstimator : public Estimator {
+// LogLogisticEstimator class for fitting and assessing an LogLogistic3 model to data.
+class LogLogisticEstimator : public Estimator {
 public:
     // Constructor
-    ExponentialEstimator();
+    LogLogisticEstimator();
 
-    // Fit the exponential model to the provided data.
+    // Fit the LogLogistic model to the provided data.
     // Parameters:
     // - data: A vector of double values representing the data to fit.
     // Returns: A boolean indicating success or failure of the fitting process.
@@ -29,10 +29,10 @@ public:
     // - data: A vector of double values representing the data to assess.
     // Returns: A tuple containing a boolean indicating if the model is rejected,
     //          the statistic of the goodness of fit test, and the threshold value.
-    tuple<bool, GoF> gof(const ModelParams& params, const vector<double>& samples) override;
+    tuple<bool, GoF> gof(const ModelParams& params, const vector<double>& samples) override;  // bool previous_model
 
 private:
     int m_min_len;
 };
 
-#endif // EXPONENTIAL_ESTIMATOR_H
+#endif // LOGLOGISTIC_ESTIMATOR_H

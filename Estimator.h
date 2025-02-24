@@ -9,27 +9,26 @@
 
 using namespace std;
 
-// LN3Estimator class for fitting a log-normal model to data
+// Estimator abstract class for fitting some model to data
 class Estimator {
 public:
-    using Ptr = std::shared_ptr<Estimator>;
+    using Ptr = shared_ptr<Estimator>;
 
-    // Constructor
-    Estimator();
-    virtual ~Estimator() = default;  // Destructor virtual
+    Estimator(); // Constructor
+    virtual ~Estimator();  // Destructor virtual
 
     // Fit the log-normal model to the provided data
     // Parameters:
     // - data: A vector of double values representing the data to fit
     // Returns: A Model object containing the fitted model parameters
-    virtual Model fit(const std::vector<double>& samples) = 0;  // Método virtual
+    virtual Model fit(const vector<double>& samples) = 0;
 
     // Assess the goodness of fit for the fitted model
     // Parameters:
     // - data: A vector of double values representing the data to assess
     // Returns: A tuple containing a boolean indicating rejection of the null hypothesis,
     //          the statistic value, and the threshold for the goodness of fit test
-    virtual std::tuple<bool, GoF> gof(const ModelParams& params, const std::vector<double>& samples) = 0;
+    virtual std::tuple<bool, GoF> gof(const ModelParams& params, const vector<double>& samples) = 0;
 };
 
 #endif // ESTIMATOR_H

@@ -9,7 +9,7 @@
 
 using namespace std;
 
-OnlineRANSAC::OnlineRANSAC(unsigned min_len, unsigned max_len, unsigned model_preserving = 0, bool sample_sliding = false, bool data_preserving = false, vector<ModelType> model_types = {}) {
+OnlineRANSAC::OnlineRANSAC(unsigned min_len, unsigned max_len, unsigned model_preserving = 0, unsigned sample_sliding = 0, unsigned data_preserving = 0, vector<ModelType> model_types = {}) {
 //           min_len -> minimum number of round-trip times to start modelling.
 //           max_len -> maximum number of round-trip times to be modelled. 
 //                      If NaN, no maximum.

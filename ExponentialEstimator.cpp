@@ -3,8 +3,9 @@
 using namespace std;
 
 // ExponentialEstimator class implementation
+
 ExponentialEstimator::ExponentialEstimator() : m_min_len(10) {
-    // Constructor
+// Constructor
 }
 
 Model ExponentialEstimator::fit(const vector<double>& samples) {
@@ -38,7 +39,7 @@ Model ExponentialEstimator::fit(const vector<double>& samples) {
         return {true, ModelType::EXP, params, gof};
     }
     else { 
-        return Model();
+        return Model(); // return an empty model: {false, ModelType::None, {NAN, NAN}, {NAN, NAN}}
     }
 }
 
@@ -46,11 +47,10 @@ tuple<bool, GoF> ExponentialEstimator::gof(const ModelParams& params, const vect
 // Based on D'Agostino p. 141: both parameters unknown. Same corrections as
 // explained in fit() apply here.
 
-    double thresh = 1.321; // D'Agostino table 4.14
     double mu = 1 / params.beta; // they use beta in the book when actually they want to use the mean
     double alpha = params.alpha;
     double beta = params.beta;
-
+    double thresh = 1.321; // D'Agostino table 4.14
     int len = samples.size();
 
     // sanity check
