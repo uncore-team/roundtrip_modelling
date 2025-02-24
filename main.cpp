@@ -1,49 +1,84 @@
+#include <fstream>
+#include <stdexcept>
+#include <chrono>
 #include <iostream>
 #include <vector>
 #include <string>
-#include <functional>
-#include <optional>
-#include "estimators/LL3Estimator.h"
-#include "estimators/LN3Estimator.h"
-#include "estimators/BernoulliEstimator.h"
-#include "estimators/ExponentialEstimator.h"
-#include "types/Model.h"
+
+#include "OnlineRANSAC.h"
+#include "ExponentialEstimator.h"
 
 using namespace std;
 
-int main() {
-    // Initialize parameters for the estimators
-    Params parms = {20, -1, {"LL3"}, 0, 1, 0};
+vector<double> read_data(const string& filename) {
+    vector<double> samples;
+    ifstream file(filename);
+    if (!file.is_open()) {
+        throw runtime_error("Could not open file");
+    }
+    double value;
+    while (file >> value) {
+        samples.push_back(value);
+    }
+    file.close();
+    return samples;
+}
 
-    // State initialization
-    State state = {{}, -1, -1, {}, {}};
+string model_to_string(ModelType model_type) {
+    switch(model_type) {
+        case ModelType::LL3: return "LL3"; break;
+        case ModelType::LN3: return "LN3"; break;
+        case ModelType::EXP: return "EXP"; break;
+        case ModelType::None: return "None"; break;
+    }
+    return "Unknown";
+}
+
+void print_model(const Model& model) {
+    if (!model.defined) {
+        cout << "Model is not defined." << endl;
+        return;
+    }
+
+    cout << "Model Type: " << model_to_string(model.type) << endl;
+    cout << "Coefficients:" << endl;
+    cout << "a: " << model.params.a << endl;
+    cout << "b: " << model.params.b << endl;
+    cout << "c: " << model.params.c << endl;
+    cout << "alpha: " << model.params.alpha << endl;
+    cout << "beta: " << model.params.beta << endl;
+    cout << "gamma: " << model.params.gamma << endl;
+    cout << "mu: " << model.params.mu << endl;
+    cout << "sigma: " << model.params.sigma << endl;
+}
+
+int main() {
 
     // Read RTTs from a file
     string filename = "rtts.txt";
-    vector<double> rtts = readRTTsFromFile(filename);
+    vector<double> samples = read_data(filename);
 
-    // Create estimator objects
-    LL3Estimator ll3Estimator;
-    LN3Estimator ln3Estimator;
-    BernoulliEstimator bernoulliEstimator;
-    ExponentialEstimator exponentialEstimator;
+    // Prepare the estimators
+    vector<ModelType> model_types = {ModelType::EXP};
 
-    // Process the RTTs with the LL3 estimator
-    auto ll3Results = ll3Estimator.performEstimation(rtts, parms, state);
+    // Initilize the Online RANSAC algorithm
+    OnlineRANSAC onlineRANSAC(20, (unsigned)INFINITY, false, false, false, model_types);
 
-    // Process the RTTs with the LN3 estimator
-    auto ln3Results = ln3Estimator.performEstimation(rtts, parms, state);
-    
-    // Process the RTTs with the Bernoulli estimator
-    auto bernoulliResults = bernoulliEstimator.performEstimation(rtts, parms, state);
-    
-    // Process the RTTs with the Exponential estimator
-    auto exponentialResults = exponentialEstimator.performEstimation(rtts, parms, state);
+    int len = samples.size();
 
-    // Output the results (example for LL3)
-    for (const auto& result : ll3Results) {
-        cout << "LL3 Index: " << result.index << ", Performance: " << result.perf << endl;
+    for (int f = 0; f < len; ++f) {
+
+//        auto t1 = chrono::high_resolution_clock::now();
+        auto exitbranch = onlineRANSAC.update(samples[f]);
+        cout << "#" << (f+1) << "exitbranch[" << exitbranch << "]" << endl;
+//        auto t2 = chrono::high_resolution_clock::now();
+//        chrono::duration<double> ct = t2 - t1;
     }
+
+    // Get the final model
+    Model model = onlineRANSAC.get_model();
+
+    print_model(model);
 
     return 0;
 }

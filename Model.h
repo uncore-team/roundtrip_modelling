@@ -4,6 +4,8 @@
 #include <limits>
 #include <cmath>
 
+using namespace std;
+
 enum ModelType {
     None = 0,
     LL3 = 1,
@@ -12,21 +14,18 @@ enum ModelType {
 };
 
 // Structure to hold model coefficients and type
-union ModelParams {
-    struct LL3 { // LogLogistic (3-params) model
-        double a = NAN;
-        double b = NAN;
-        double c = NAN;
-    };
-    struct LN3 { //  LogNormal (3-params) model
-        double gamma = NAN;  // Gamma
-        double mu = NAN;     // Mean
-        double sigma = NAN;  // Standard deviation
-    };
-    struct EXP { // Exponential model
-        double alpha = NAN;
-        double beta = NAN;
-    };
+struct ModelParams {
+    // LogLogistic (3-params) model
+    double a = NAN;
+    double b = NAN;
+    double c = NAN;
+    //  LogNormal (3-params) model
+    double gamma = NAN;  // Gamma
+    double mu = NAN;     // Mean
+    double sigma = NAN;  // Standard deviation
+    // Exponential model
+    double alpha = NAN;  // location of the distribution 
+    double beta = NAN;  // 1/beta mean of the distribution
 };
 
 struct GoF { // Goodness of fit
@@ -43,7 +42,7 @@ struct Model {
 };
 
 struct State {
-    vector<double> sample;
+    vector<double> samples;
     Model model;
 };
 
