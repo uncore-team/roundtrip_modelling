@@ -4,6 +4,8 @@
 #include <memory>
 
 #include "OnlineRANSAC.h"
+#include "LogLogisticEstimator.h"
+#include "LogNormalEstimator.h"
 #include "ExponentialEstimator.h"
 #include "Model.h"
 
@@ -45,8 +47,8 @@ OnlineRANSAC::OnlineRANSAC(unsigned min_len, unsigned max_len, unsigned model_pr
     m_model_estimators = {};
     for(const ModelType& mtype: model_types) {
         switch (mtype) {
-            case ModelType::LL3: /* m_model_estimators[mtype] = make_shared<LL3Estimator>();*/ break;
-            case ModelType::LN3: /* m_model_estimators[mtype] = make_shared<LN3Estimator>();*/ break;
+            case ModelType::LL3: m_model_estimators[mtype] = make_shared<LogLogisticEstimator>(); break;
+            case ModelType::LN3: m_model_estimators[mtype] = make_shared<LogNormalEstimator>(); break;
             case ModelType::EXP: m_model_estimators[mtype] = make_shared<ExponentialEstimator>(); break;
             default:
                 throw invalid_argument("Invalid model type");
@@ -93,7 +95,7 @@ int OnlineRANSAC::update(double sample) {
     Model model;
 
     samples.push_back(sample); // add new sample to the list
-    int len = samples.size();
+    unsigned len = samples.size();
 
     if (len < m_min_len) {
         exitbranch = 1;

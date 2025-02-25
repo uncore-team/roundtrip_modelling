@@ -1,9 +1,10 @@
-#include <fstream>
-#include <stdexcept>
 #include <chrono>
+#include <fstream>
+#include <iomanip>
 #include <iostream>
-#include <vector>
+#include <stdexcept>
 #include <string>
+#include <vector>
 
 #include "OnlineRANSAC.h"
 #include "ExponentialEstimator.h"
@@ -36,32 +37,34 @@ string model_to_string(ModelType model_type) {
 }
 
 void print_model(const Model& model) {
-
     if (!model.defined) {
-        printf("Model is not defined.\n");
+        cout << "Model is not defined." << endl;
         return;
     }
 
-    printf("\nModel Type: %s", model_to_string(model.type).c_str());
+    cout << "\nModel Type: " << model_to_string(model.type);
+    cout << fixed << setprecision(6);  // Configurar formato para números flotantes
+    
     switch(model.type) {
         case ModelType::LL3:
-            printf("\n\ta: %.6f", model.params.a);
-            printf("\n\tb: %.6f", model.params.b);
-            printf("\n\tc: %.6f", model.params.c);
+            cout << "\n\ta: " << model.params.a
+                 << "\n\tb: " << model.params.b
+                 << "\n\tc: " << model.params.c;
             break;
         case ModelType::LN3:
-            printf("\n\tgamma: %.6f", model.params.gamma);
-            printf("\n\tmu: %.6", model.params.mu);
-            printf("\n\tsigma: %.6f", model.params.sigma);
+            cout << "\n\tgamma: " << model.params.gamma
+                 << "\n\tmu: " << model.params.mu
+                 << "\n\tsigma: " << model.params.sigma;
             break;
         case ModelType::EXP:
-            printf("\n\talpha: %.6f", model.params.alpha);
-            printf("\n\tbeta: %.6f", model.params.beta);
+            cout << "\n\talpha: " << model.params.alpha
+                 << "\n\tbeta: " << model.params.beta;
             break;
         case ModelType::None:
-            printf("Model is not defined.\n");
+            cout << "Model is not defined.";
             break;
     }
+    cout << endl;
 }
 
 int main() {
@@ -70,16 +73,17 @@ int main() {
     string filename = "rtts.txt";
     vector<double> samples = read_data(filename);
 
-    // Prepare the estimators
-    vector<ModelType> model_types = {ModelType::EXP};
+    // List the estimators
+    vector<ModelType> model_types = {ModelType::LL3};
 
     int len = samples.size();
     for(int model_preserving = 0; model_preserving < 3; ++model_preserving) {
         for (int sample_sliding = 0; sample_sliding < 2; ++sample_sliding) {
             for (int data_preserving = 0; data_preserving < 2; ++data_preserving) {
+                
                 cout << endl << "model_preserving[" << model_preserving << "] "
-                     << "sample_sliding[" << sample_sliding << "] "
-                     << "data_preserving[" << data_preserving << "]";
+                    << "sample_sliding[" << sample_sliding << "] "
+                    << "data_preserving[" << data_preserving << "]";
 
                 // Initilize the Online RANSAC algorithm
                 OnlineRANSAC onlineRANSAC(
@@ -90,14 +94,17 @@ int main() {
                 for (int f = 0; f < len; ++f) {
 
             //        auto t1 = chrono::high_resolution_clock::now();
-                    auto exitbranch = onlineRANSAC.update(samples[f]);
+                    //auto exitbranch =
+                    onlineRANSAC.update(samples[f]);
                     // cout << "#" << (f+1) << " exitbranch[" << exitbranch << "]" << endl;
             //        auto t2 = chrono::high_resolution_clock::now();
             //        chrono::duration<double> ct = t2 - t1;
                 }
 
                 // Get the final model
-                print_model(onlineRANSAC.get_model());       
+                print_model(onlineRANSAC.get_model());
+
+                return 0; // just for testing the first iteration
             }
         }
     }

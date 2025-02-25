@@ -1,5 +1,5 @@
-#ifndef LOGLOGISTIC_ESTIMATOR_H
-#define LOGLOGISTIC_ESTIMATOR_H
+#ifndef LOGNORMAL_ESTIMATOR_H
+#define LOGNORMAL_ESTIMATOR_H
 
 #include <algorithm>
 #include <cmath>
@@ -12,11 +12,11 @@
 
 using namespace std;
 
-// LogLogisticEstimator class for fitting and assessing an LogLogistic3 model to data.
-class LogLogisticEstimator : public Estimator {
+// LogNormalEstimator class for fitting and assessing an LogLogistic3 model to data.
+class LogNormalEstimator : public Estimator {
 public:
     // Constructor
-    LogLogisticEstimator();
+    LogNormalEstimator();
 
     // Fit the LogLogistic model to the provided data.
     // Parameters:
@@ -33,10 +33,6 @@ public:
 
 private:
     int m_min_len;
-
-//    double median(vector<double>& samples);
-//    double beta(double x1, double x2);
-//    double findMedian(vector<double>& samples);
 };
 
-#endif // LOGLOGISTIC_ESTIMATOR_H
+#endif // LOGNORMAL_ESTIMATOR_H

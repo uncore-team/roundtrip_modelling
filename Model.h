@@ -32,7 +32,7 @@ struct ModelParams {
 };
 
 struct GoF { // Goodness of fit
-    double stat = NaN;  // Statistic
+    double stat = Inf;  // Statistic
     double thresh = NaN;  // Threshold
 };
 

@@ -5,361 +5,263 @@ using namespace std;
 using namespace alglib;
 
 // LogLogisticEstimator class implementation
-#define MAX_ITS_FIRST_OPTIMIZATION 50
-#define MAX_ITS_SECOND_OPTIMIZATION 100
+#define MAX_ITERS 100
 
-// // Function for calculating median
-// double findMedian(vector<double> & a) {
-//     size_t n = a.size();
-//     sort(a.begin(), a.end());
-//     if (n % 2 != 0) return (double)a[n/2];
-//     return (double)(a[(n-1)/2] + a[n/2])/2.0;
-// }
+struct optim_data {
+    vector<double> samples;
+    size_t len;
+    double min;
+};
 
-// double beta(double x1, double x2) {
-//     return exp(lgamma(x1) + lgamma(x2) - lgamma(x1 + x2));
-// }
+/**
+ * Calculates the function vector for log-logistic optimization
+ * 
+ * @param x Input parameter array [a, b, c] where:
+ *          a: location parameter
+ *          b: scale parameter
+ *          c: shape parameter
+ * @param fi Output function vector (3 components)
+ * @param ptr Pointer to optimization parameters (samples and min value)
+ */
+void loglogistic_fvec(const real_1d_array& x, real_1d_array& fi, void* ptr) {
 
-// // Optimized function
-// void function1_func(const real_1d_array &x, real_1d_array &fi, void *ptr) {
-//     const auto & pdatos = const_cast<const vector<double> &>(*reinterpret_cast<vector<double> *>(ptr));
-//     fi[0] = pdatos[0] + pdatos[1]*beta(1.0 + x[0], 1 - x[0]) - pdatos[2];
-// }
+    // Get optimization parameters
+    optim_data* p = (optim_data*)ptr;
+    const vector<double>& samples = p->samples;
+    const double min = p->min;
+    const size_t len = p->len;
 
-// // Second optimized function
-// void function2_fvec(const real_1d_array & x, real_1d_array & fi, void * ptr) {
-//     unsigned f;
-//     double invc, sum1, sum2, sum3, xma, aux, b2invc, xma2invc, logxma, logb, bc, nn;
+    // Get and validate parameters
+    double a = max(eps, x[0]);
+    double b = max(eps, x[1]);
+    double c = max(eps, x[2]);
+    a = std::min(a, min - eps);
 
-//     double a = x[0];
-//     double b = x[1];
-//     double c = x[2];
-//     const auto * pdatos = reinterpret_cast<const struct_function2*>(ptr);
-//     const auto & samples = *(pdatos->samples);
-//     auto n = samples.size();
-//     auto minx = pdatos->min;
+    // Precompute common terms
+    const double invc = 1.0/c;
+    const double b2invc = pow(b, invc);
+    const double logb = log(b);
+    const double bc = b*c;
+    const double nn = static_cast<double>(len);
 
-//     if (a <= 0.0) a = eps;
-//     if (b <= 0.0) b = eps;
-//     if (c <= 0.0) c = eps;
-//     if (a >= minx) a = minx - eps;
+    // Initialize sums
+    double sum1 = 0.0, sum2 = 0.0, sum3 = 0.0;
 
-// 	invc=1.0/c;
-// 	b2invc=pow(b,invc);
-// 	logb=log(b);
-// 	bc=b*c;
-// 	nn=(double)n;
+    // Main computation loop
+    #pragma omp parallel for reduction(+:sum1,sum2,sum3) if(len > 1000)
+    for (int i = 0; i < len; ++i) {
+        const double xma = samples[i] - a;	
+        const double xma2invc = pow(xma, invc);
+        const double logxma = log(xma);
+        const double xmab = xma/b;
+        const double aux = xma2invc + b2invc;
+        const double logxmab = log(xmab);
 
-// 	sum1=0.0; sum2=0.0; sum3=0.0;
-// 	for (f=0; f<n; f++)
-// 	{
-// 		xma=samples[f]-a;	
-// 		xma2invc=pow(xma,invc);
-// 		logxma=log(xma);
-// 		aux=xma2invc+b2invc;
+        // Update partial sums
+		sum1 += ((1.0 + invc) - (2.0*b2invc/c)/aux)/xma;
+		sum2 += 1.0/aux;
+		sum3 += logxma - 2.0*logxmab/(pow(xmab, b2invc) + 1.0);
+	}
 
-// 		sum1+=( (1.0+invc)-(2.0*b2invc/c)/aux )/xma;
+    // Final calculations
+	sum2 = (nn - 2.0*b2invc*sum2)/(bc);
+	sum3 = (-nn*(logb + c) + sum3)/(c*c);
 
-// 		sum2+=1.0/aux;
+// Store results
+    fi[0] = sum1;
+    fi[1] = sum2;
+    fi[2] = sum3;
+}
 
-// 		sum3+=logxma-2.0*(  log(xma/b)   /*(logxma-logb)*/    /( pow(xma/b,b2invc)   /*xma2invc/b2invc*/+1.0));
-// 	}
-// 	sum2=( nn-2.0*b2invc*sum2 )/(bc);
-// 	sum3=( -nn*(logb+c)+sum3 )/(c*c);
+/**
+ * Calculates the Jacobian matrix for log-logistic optimization
+ * 
+ * @param x Input parameter array [a, b, c]
+ * @param fi Output function vector (3 components)
+ * @param jac Output Jacobian matrix (3x3)
+ * @param ptr Pointer to optimization parameters
+ */
+void loglogistic_jac(const real_1d_array& x, real_1d_array& fi, real_2d_array& jac, void* ptr) {
 
-//     fi[0] = sum1;
-//     fi[1] = sum2;
-//     fi[2] = sum3;
-// }
+    // Get optimization parameters
+    optim_data* p = (optim_data*)ptr;
+    const vector<double>& samples = p->samples;
+    const double min = p->min;
+    const size_t len = p->len;
 
-// // Jacobian function
-// void function2_jac(const real_1d_array & x, real_1d_array & fi, real_2d_array & jac, void * ptr) {
-//     unsigned f;
-//     double invc, sum1, sum2, sum3, xma, aux, b2invc, xma2invc, logxma, logb, bc, nn;
+    // Validate and initialize parameters
+    double a = max(eps, x[0]);
+    double b = max(eps, x[1]);
+    double c = max(eps, x[2]);
+    a = std::min(a, min - eps);
 
-//     double a = x[0];
-//     double b = x[1];
-//     double c = x[2];
-//     const auto *pdatos = reinterpret_cast<const struct_function2 *>(ptr);
-//     const auto & samples = *(pdatos->samples);
-//     auto n = samples.size();
-//     auto minx = pdatos->min;
+    // Precompute common terms
+    const double invc = 1.0/c;
+    const double b2invc = pow(b, invc);
+    const double logb = log(b);
+    const double bc = b*c;
+    const double nn = static_cast<double>(len);
+    const double c2 = c*c;
+    const double c3 = c2*c;
 
-//     if (a <= 0.0) a = eps;
-//     if (b <= 0.0) b = eps;
-//     if (c <= 0.0) c = eps;
-//     if (a >= minx) a = minx - eps;
+    // Initialize accumulators for sums and Jacobian elements
+    double sum1 = 0.0, sum2 = 0.0, sum3 = 0.0;
+    double f1a = 0.0, f1b = 0.0, f1c = 0.0;
+    double f2a = 0.0, f2b = 0.0, f2c = 0.0;
+    double f3a = 0.0, f3b = 0.0, f3c = 0.0;
 
-//     double f1a, f1b, f1c, f2a, f2b, f2c, f3a, f3b, f3c;
-//     double c2, c3;
-//     double xmab2invc, xma2, xmab, logxmab, aux2, aux1, aux12;
+    // Main computation loop with OpenMP parallelization for large datasets
+    #pragma omp parallel for reduction(+:sum1,sum2,sum3,f1a,f1b,f1c,f2a,f2b,f2c,f3a,f3b,f3c) if(len > 1000)
+    for (int i = 0; i < len; ++i) {
+        // Compute intermediate values
+        const double xma = samples[i] - a;
+        const double xma2invc = pow(xma, invc);
+        const double logxma = log(xma);
+        const double xma2 = xma * xma;
+        const double xmab = xma/b;
+        const double xmab2invc = pow(xmab, invc);
+        const double logxmab = log(xmab);
 
-// 	invc=1.0/c;
-// 	b2invc=pow(b,invc);
-// 	logb=log(b);
-// 	bc=b*c;
-// 	nn=(double)n;
-// 	c2=c*c;
-// 	c3=c2*c;
+        // Compute auxiliary terms
+        const double aux = xma2invc + b2invc;
+        const double aux2 = aux * aux;
+        const double aux1 = xmab2invc + 1.0;
+        const double aux12 = aux1 * aux1;
 
-// 	sum1=0.0; sum2=0.0; sum3=0.0;
-// 	f1a=0.0; f1b=0.0; f1c=0.0;
-// 	f2a=0.0; f2b=0.0; f2c=0.0;
-// 	f3a=0.0; f3b=0.0; f3c=0.0;
-// 	for (f=0; f<n; f++)
-// 	{
-// 		xma=samples[f]-a;
-// 		xma2invc=pow(xma,invc);
-// 		logxma=log(xma);
-// 		xma2=xma*xma;
-// 		xmab=xma/b;
-// 		xmab2invc=pow(xmab,invc);
-// 		logxmab=log(xmab);
+        // Update sums for function values
+        sum1 += ((1.0 + invc) - (2.0*b2invc/c)/aux)/xma;
+        sum2 += 1.0/aux;
+        sum3 += logxma - 2.0*logxmab/aux1;
 
-// 		aux=xma2invc+b2invc;
-// 		aux2=aux*aux;
-// 		aux1=xmab2invc+1.0;
-// 		aux12=aux1*aux1;
+        // Update Jacobian elements
+        f1a += (1.0 + invc)/xma2 - 2.0*b2invc/c*(c*aux + xma2invc)/(c*xma2*aux2);
+        f1b += -2.0/(c*xma)*b2invc*xma2invc/(bc*aux2);
+        f1c += -1.0/(c2*xma) + 2.0*b2invc*(c*aux + logb*xma2invc - xma2invc*logxma)/(c3*xma*aux2);
+        
+        f2a += xma2invc/(xma*aux2);
+        f2b += (c*aux - xma2invc)/aux2;
+        f2c += (c*aux + logb*xma2invc - xma2invc*logxma)/aux2;
+        
+        f3a += -1.0/xma + 2.0*(c*xmab2invc - xmab2invc*logxmab + c)/(c*xma*aux12);
+        f3b += (xmab2invc*logxmab - c*aux1)/aux12;
+        f3c += logxma + (logxmab*(xmab2invc*logxmab - 2.0*c*aux1))/(c*aux12);
+    }
 
-// 		sum1+=( (1.0+invc)-(2.0*b2invc/c)/aux )/xma;
+    // Final calculations for Jacobian elements
+    f2a = -2.0*b2invc/(bc*c)*f2a;
+    f2b = -nn/(bc*b) + 2.0*b2invc/(bc*bc)*f2b;
+    f2c = -nn/(bc*c) + 2.0*b2invc/(bc*c*c)*f2c;
+    f3a = invc*invc*f3a;
+    f3b = -nn/(bc*c) - 2.0/(bc*c*c)*f3b;
+    f3c = 2.0*nn*logb/(c*c*c) + nn/(c*c) - 2.0/(c*c*c)*f3c;
 
-// 		sum2+=1.0/aux;
+    // Calculate final function values
+    sum2 = (nn - 2.0*b2invc*sum2)/(bc);
+    sum3 = (-nn*(logb + c) + sum3)/(c*c);
 
-// 		sum3+=logxma-2.0*(  log(xma/b)   /*(logxma-logb)*/    /( pow(xma/b,b2invc)   /*xma2invc/b2invc*/+1.0));
+    // Store function values
+    fi[0] = sum1;
+    fi[1] = sum2;
+    fi[2] = sum3;
 
-// 		f1a=f1a+(1.0+invc)/xma2-2.0*b2invc/c*(c*aux+xma2invc)/(c*xma2*aux2);
-
-// 		f1b=f1b-2.0/(c*xma)*b2invc*xma2invc/(bc*aux2);
-
-// 		f1c=f1c-1.0/(c2*xma)+2.0*b2invc*(c*aux+logb*xma2invc-xma2invc*logxma)/(c3*xma*aux2);
-
-// 		f2a=f2a+xma2invc/(xma*aux2);
-
-// 		f2b=f2b+(c*aux-xma2invc)/aux2;
-
-// 		f2c=f2c+(c*aux+logb*xma2invc-xma2invc*logxma)/aux2;
-
-// 		f3a=f3a-1.0/xma+2.0*(c*xmab2invc-xmab2invc*logxmab+c)/(c*xma*aux12);
-
-// 		f3b=f3b+(xmab2invc*logxmab-c*aux1)/aux12;
-
-// 		f3c=f3c+logxma+(logxmab*(xmab2invc*logxmab-2.0*c*aux1))/(c*aux12);
-// 	}
-// 	f2a=-2.0*b2invc/(bc*c)*f2a;
-// 	f2b=-nn/(bc*b)+2.0*b2invc/(bc*bc)*f2b;
-// 	f2c=-nn/(bc*c)+2.0*b2invc/(bc*c*c)*f2c;
-// 	f3a=invc*invc*f3a;
-// 	f3b=-nn/(bc*c)-2.0/(bc*c*c)*f3b;
-// 	f3c=2.0*nn*logb/(c*c*c)+nn/(c*c)-2.0/(c*c*c)*f3c;
-
-// 	sum2=( nn-2.0*b2invc*sum2 )/(bc);
-// 	sum3=( -nn*(logb+c)+sum3 )/(c*c);
-
-//     fi[0] = sum1;
-//     fi[1] = sum2;
-//     fi[2] = sum3;
-
-//     jac[0][0] = f1a; jac[0][1] = f1b; jac[0][2] = f1c;
-//     jac[1][0] = f2a; jac[1][1] = f2b; jac[1][2] = f2c;
-//     jac[2][0] = f3a; jac[2][1] = f3b; jac[2][2] = f3c;
-// }
-
-// // First optimization function
-// int firstOptimization(double & valorOptimizado, const vector<double> & param) {
-//     real_1d_array x = "[0.05]";
-//     real_1d_array s = "[0.000001]";
-//     real_1d_array bndl = "[0.05]";
-//     real_1d_array bndu = "[0.5]";
-//     minlmstate state;
-
-//     minlmcreatev(1, x, 0.001, state);
-//     minlmsetbc(state, bndl, bndu);
-//     minlmsetcond(state, eps, MAX_ITS_FIRST_OPTIMIZATION);
-//     minlmsetscale(state, s);
-
-//     minlmoptimize(state, function1_func, NULL, const_cast<void *>(reinterpret_cast<const void*>(&param)));
-
-//     minlmreport rep;
-//     minlmresults(state, x, rep);
-
-//     valorOptimizado = x[0];
-//     return rep.terminationtype;
-// }
-
-// // Second optimization function
-// int secondOptimization(const double a0, const double b0, const double c0, const struct_function2 & param2, vector<double> & parameters) {
-//     try {
-//         // Inicialización de parámetros
-//         real_1d_array x;
-//         double x1[] = {a0, b0, c0};
-//         x.attach_to_ptr(3, x1);
-
-//         // Límites inferiores
-//         real_1d_array bndl;
-//         double bndl1[] = {eps, eps, 0.05};
-//         bndl.attach_to_ptr(3, bndl1);
-
-//         // Límites superiores
-//         real_1d_array bndu;
-//         double bndu1[] = {param2.min - eps, Inf, 0.5 - eps};
-//         bndu.attach_to_ptr(3, bndu1);
-
-//         real_1d_array s;
-//         double scales[] = {1e-6, 1e-6, 1e-6};
-//         s.attach_to_ptr(3, scales);
-
-//         // Configuración del optimizador
-//         minlmstate state;
-//         minlmcreatevj(3, x, state);
-//         minlmsetbc(state, bndl, bndu);
-//         minlmsetcond(state, eps, MAX_ITS_SECOND_OPTIMIZATION);
-//         minlmsetscale(state, s);
-
-//         // Configuración de OptGuard solo en modo debug
-//         #ifdef _DEBUG
-//             minlmoptguardgradient(state, 0.001);
-//         #endif
-
-//         // Optimización
-//         minlmoptimize(state, function2_fvec, function2_jac, NULL, 
-//                      const_cast<void*>(reinterpret_cast<const void*>(&param2)));
-
-//         // Resultados
-//         minlmreport rep;
-//         minlmresults(state, x, rep);
-
-//         // Validación de resultados
-//         if (!isfinite(x[0]) || !isfinite(x[1]) || !isfinite(x[2])) {
-//             return -1;  // Error: resultados no válidos
-//         }
-
-//         parameters = {x[0], x[1], x[2]};
-//         return rep.terminationtype;
-//     }
-//     catch (ap_error& e) {
-//         cerr << "Optimization error: " << e.msg << endl;
-//         return -1;
-//     }
-// }
-
-// // MLE function
-// int MLE(const vector<double> & R, vector<double> & parameters) {
-//     double a0, b0, c0;
-//     int n = R.size();
-//     int minlen = 10;
-//     double minc = 0.05;
-//     //double maxc = 1 / 2 - eps;
-
-//     if (n < minlen) {
-//         cout << "Cannot fit anything with less than " << minlen << " values" << endl;
-//         return -1;
-//     }
-
-//     auto minx = *min_element(R.begin(), R.end());
-//     if (minx <= 0) {
-//         cout << "Cannot fit a loglogistic with minx <= 0" << endl;
-//         return -1;
-//     }
-
-//     double maxx = *max_element(R.begin(), R.end());
-//     double mux = accumulate(R.begin(), R.end(), 0.0) / R.size();
-
-//     a0 = minx - (maxx - minx) / 1e4;
-//     if (a0 < 0) a0 = 0;
-
-//     vector<double> xi_minus_a{R.begin(), R.end()};
-//     for (int i = 0; i < n; ++i) xi_minus_a[i] -= a0;
-//     b0 = findMedian(xi_minus_a);
-//     if (b0 < 1e-6) b0 = 1e-6;
-
-//     parameters = {a0, b0, mux};
-
-//     int value = firstOptimization(c0, parameters);
-
-//     struct_function2 param2;
-//     param2.samples = &R;
-//     param2.min = minx;
-
-//     value = secondOptimization(a0, b0, c0, param2, parameters);
-
-//     return value;
-// }
+    // Store Jacobian matrix
+    jac[0][0] = f1a; jac[0][1] = f1b; jac[0][2] = f1c;
+    jac[1][0] = f2a; jac[1][1] = f2b; jac[1][2] = f2c;
+    jac[2][0] = f3a; jac[2][1] = f3b; jac[2][2] = f3c;
+}
 
 LogLogisticEstimator::LogLogisticEstimator() : m_min_len(10) {
 // Constructor
 }
 
 Model LogLogisticEstimator::fit(const vector<double>& samples) {
-//     double a0, b0, c0;
-//     int n = R.size();
-//     int minlen = 10;
-//     double minc = 0.05;
-//     //double maxc = 1 / 2 - eps;
 
-//     if (n < minlen) {
-//         cout << "Cannot fit anything with less than " << minlen << " values" << endl;
-//         return -1;
-//     }
+    size_t len = samples.size();
 
-//     auto minx = *min_element(R.begin(), R.end());
-//     if (minx <= 0) {
-//         cout << "Cannot fit a loglogistic with minx <= 0" << endl;
-//         return -1;
-//     }
+    vector<double> data = samples;
+    sort(data.begin(), data.end());
 
-//     double maxx = *max_element(R.begin(), R.end());
-//     double mux = accumulate(R.begin(), R.end(), 0.0) / R.size();
-
-//     a0 = minx - (maxx - minx) / 1e4;
-//     if (a0 < 0) a0 = 0;
-
-//     vector<double> xi_minus_a{R.begin(), R.end()};
-//     for (int i = 0; i < n; ++i) xi_minus_a[i] -= a0;
-//     b0 = findMedian(xi_minus_a);
-//     if (b0 < 1e-6) b0 = 1e-6;
-
-//     parameters = {a0, b0, mux};
-
-//     int value = firstOptimization(c0, parameters);
-
-//     struct_function2 param2;
-//     param2.samples = &R;
-//     param2.min = minx;
-
-//     value = secondOptimization(a0, b0, c0, param2, parameters);
-
-//     return value;
-    /*
-    vector<double> params = {0, 0, 0};
-    int status = MLE(x, params);
-    double a = params[0];
-    double b = params[1];
-    double c = params[2];
-    return {a, b, c, status};
-
-    int len = samples.size();
+    auto min = data[0];
+    auto max = data[len-1];
+    auto q1 = data[len/4];
+    auto q3 = data[3*len/4];
 
     // sanity check
     if (len < m_min_len) {
-        throw invalid_argument("Cannot fit anything with less than 10 values");
+        throw invalid_argument("Cannot fit anything with less than 'm_min_len' values.");
     }
 
-    double min = *min_element(samples.begin(), samples.end());
-    double mean = accumulate(samples.begin(), samples.end(), 0.0) / len;
-    double mu = len * (mean - min) / (len - 1); // estimate of the (non-shifted) mean
+    if (min <= 0) {
+        throw invalid_argument("Cannot fit anything with min <= 0.");
+    }
+
+    // initial guess for a
+    auto a0 = min - (max - min) / 1e4; // just a crude estimate of where the a could be, to start with
+    if (a0 < 0) a0 = 0;
+
+    // initial guess for b
+    auto b0 = (max - min) / 2.0;
+    if (b0 < 1e-6) b0 = 1e-6;  // to avoid some numerical errors in the fitting pass
+
+    // initial guess for c using the 3rd ad 1st quartiles' relationship
+    auto c0 = (q3 - q1) / (max - min);
+
+    real_1d_array x;
+    double x1[] = {a0, b0, c0};
+    x.attach_to_ptr(3, x1);
+
+    // Lower bounds
+    real_1d_array bndl;
+    double bndl1[] = {eps, eps, 0.05};
+    bndl.attach_to_ptr(3, bndl1);
+
+    // Upper bounds
+    real_1d_array bndu;
+    double bndu1[] = {min - eps, Inf, 0.5 - eps};
+    bndu.attach_to_ptr(3, bndu1);
+
+    real_1d_array s;
+    double scales[] = {1e-6, 1e-6, 1e-6};
+    s.attach_to_ptr(3, scales);
+
+    // Optmization setup
+    minlmstate state;
+    minlmcreatevj(3, x, state);
+    minlmsetbc(state, bndl, bndu);
+    minlmsetcond(state, eps, MAX_ITERS);
+    minlmsetscale(state, s);
+
+    // Setup of OptGuard in debug only
+    #ifdef _DEBUG
+        minlmoptguardgradient(state, 0.001);
+    #endif
+
+    optim_data odata = {samples, len, min};
+
+    // Optimization
+    minlmoptimize(state, loglogistic_fvec, loglogistic_jac, NULL, &odata);
+
+    // Results
+    minlmreport rep;
+    minlmresults(state, x, rep);
+
+    if(rep.terminationtype < 0) {
+        cerr << "Error: Optimization did not converge. Code: " << rep.terminationtype << endl;
+        return Model(); // return an empty model: {false, ModelType::None, {NAN, NAN}, {Inf, NAN}}
+    }
 
     ModelParams params;
-    params.alpha = min - mu / len;
-    params.beta = 1 / mu; // beta is the reciprocal of the mean (in the book they use beta as the mean)
-*/
-    // auto [reject, gof] = this->gof(params, samples);
+    params.a = x[0];
+    params.b = x[1];
+    params.c = x[2];
 
-    // if (!reject) {
-    //     return {true, ModelType::EXP, params, gof};
-    // }
-    // else { 
-    //     return Model(); // return an empty model: {false, ModelType::None, {NAN, NAN}, {NAN, NAN}}
-    // }
+    auto [reject, gof] = this->gof(params, samples);
+    if (!reject) {
+        return {true, ModelType::LL3, params, gof};
+    }
+    else { 
+        return Model(); // return an empty model: {false, ModelType::None, {NAN, NAN, NAN}, {Inf, NAN}}
+    }
 }
 
 tuple<bool, GoF> LogLogisticEstimator::gof(const ModelParams& params, const vector<double>& samples) { // bool previous_model
