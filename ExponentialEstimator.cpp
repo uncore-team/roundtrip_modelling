@@ -1,59 +1,109 @@
+/**
+ * @brief Implementation of the ExponentialEstimator class for two-parameter exponential distribution.
+ * 
+ * Provides methods for:
+ * - Parameter estimation using maximum likelihood
+ * - Goodness of fit testing using Anderson-Darling
+ * - Distribution fitting with validation
+ * 
+ * Based on D'Agostino & Stephens (1986), Chapter 4.
+ */
+
 #include "ExponentialEstimator.h"
 
 using namespace std;
 
-// ExponentialEstimator class implementation
-
-ExponentialEstimator::ExponentialEstimator() : m_min_len(10) {
-// Constructor
+/**
+ * Constructor for ExponentialEstimator class.
+ * Initializes the base Estimator class with a minimum required sample size of 10.
+ * This minimum size ensures reliable parameter estimation for the exponential distribution.
+ */
+ExponentialEstimator::ExponentialEstimator() : Estimator(10) {
 }
 
+/**
+ * Fits a two-parameter exponential distribution to the given samples.
+ * Implementation based on D'Agostino & Stephens (1986), p. 141.
+ * 
+ * @param samples Input vector of observed values
+ * 
+ * @return Model structure containing:
+ *         - defined: true if fit was successful
+ *         - type: ModelType::EXP for successful fit, ModelType::None otherwise
+ *         - params: {alpha, beta} parameters where:
+ *           * alpha: location parameter (minimum possible value)
+ *           * beta: rate parameter (1/mean)
+ *         - gof: Goodness of fit statistics
+ * 
+ * Implementation details:
+ * - Corrected implementation from D'Agostino's book
+ * - beta is calculated as 1/mean (reciprocal of the mean)
+ * - Uses maximum likelihood estimation for parameters
+ * - Performs Anderson-Darling goodness of fit test
+ * 
+ * @throws invalid_argument if samples.size() < m_min_len
+ */
 Model ExponentialEstimator::fit(const vector<double>& samples) {
-// According to D'Agostino, p. 141 but corrected for the final beta to be
-// 1/mean (not correct in the book, where they say they estimate beta when 
-// actually they are estimating the mean).
-// Shifted exponential pdf in D'Agostino p. 133
-// 1/beta == mean of the distribution
-// alpha == location of the distribution
-// returns: alpha, beta, and a boolean indicating success (true) or failure (false)
-// of the fitting process
-
     int len = samples.size();
 
-    // sanity check
+    // Validate minimum sample size requirement
     if (len < m_min_len) {
         throw invalid_argument("Cannot fit anything with less than 10 values");
     }
 
-    double min = *min_element(samples.begin(), samples.end());
-    double mean = accumulate(samples.begin(), samples.end(), 0.0) / len;
-    double mu = len * (mean - min) / (len - 1); // estimate of the (non-shifted) mean
+    // Calculate initial estimates using method of moments
+    double min = _min(samples);
+    double mean = _mean(samples);
+    double mu = len * (mean - min) / (len - 1); // Bias-corrected mean estimate
 
+    // Set distribution parameters
     ModelParams params;
-    params.alpha = min - mu / len;
-    params.beta = 1 / mu; // beta is the reciprocal of the mean (in the book they use beta as the mean)
+    params.alpha = min - mu / len;    // Location parameter estimate
+    params.beta = 1 / mu;             // Rate parameter (inverse of mean)
 
-    auto [reject, gof] = this->gof(params, samples);
+    // Perform goodness of fit test
+    auto [reject, gof_] = gof(params, samples);
 
+    // Return model only if fit is acceptable
     if (!reject) {
-        return {true, ModelType::EXP, params, gof};
+        return {true, ModelType::EXP, params, gof_};
     }
     else { 
-        return Model(); // return an empty model: {false, ModelType::None, {NAN, NAN}, {NAN, NAN}}
+        return Model(); // Return invalid model if fit is rejected
     }
 }
 
+/**
+ * Performs Anderson-Darling goodness of fit test for exponential distribution.
+ * Based on D'Agostino & Stephens (1986), p. 141, Case 3 (both parameters unknown).
+ * 
+ * @param params Model parameters {alpha, beta} to test
+ * @param samples Input vector of observed values
+ * 
+ * @return tuple<bool, GoF> containing:
+ *         - bool: true if null hypothesis should be rejected (poor fit)
+ *         - GoF: {statistic, threshold} where:
+ *           * statistic: modified A² test statistic
+ *           * threshold: critical value (1.321) from Table 4.14
+ * 
+ * Implementation details:
+ * - Transforms data to uniform distribution using CDF
+ * - Applies small sample correction factor: (1 + 5.4/n - 11/n²)
+ * - Uses right-tailed test with significance level 0.05
+ * - Rejection criteria: A² > 1.321
+ * 
+ * @throws invalid_argument if:
+ *         - beta <= 0
+ *         - samples.size() < m_min_len
+ */
 tuple<bool, GoF> ExponentialEstimator::gof(const ModelParams& params, const vector<double>& samples) {
-// Based on D'Agostino p. 141: both parameters unknown. Same corrections as
-// explained in fit() apply here.
-
-    double mu = 1 / params.beta; // they use beta in the book when actually they want to use the mean
-    double alpha = params.alpha;
-    double beta = params.beta;
-    double thresh = 1.321; // D'Agostino table 4.14
     int len = samples.size();
+    double mu = 1 / params.beta;      // Convert rate to mean for calculations
+    double alpha = params.alpha;       // Location parameter
+    double beta = params.beta;         // Rate parameter
+    double thresh = 1.321;            // Critical value from D'Agostino table 4.14
 
-    // sanity check
+    // Validate parameters
     if (beta <= 0) {
         throw invalid_argument("Invalid beta for exponential distribution.");
     }
@@ -61,7 +111,7 @@ tuple<bool, GoF> ExponentialEstimator::gof(const ModelParams& params, const vect
         throw invalid_argument("Number of samples is not enough or is zero.");
     }
 
-    // prepare data for the test
+    // Transform data to uniform using exponential CDF
     vector<double> data(len);
     transform(
         samples.begin(), samples.end(),
@@ -70,35 +120,19 @@ tuple<bool, GoF> ExponentialEstimator::gof(const ModelParams& params, const vect
     );
     sort(data.begin(), data.end());
 
-    // calculate statistic: A2 for case 3 (both parameters were deduced from
-    // the same sample). This statistic measures the squared distance
-    // between experimental and theoretical Zs, and, indirectly, between 
-    // theoretical and experimental Xs (p. 100)
+    // Calculate Anderson-Darling statistic (A²)
     double accum = 0.0;
     for (int i = 0; i < len; ++i) {
-        accum += (2 * (i + 1) - 1) * log(data[i]) + (2 * len + 1 - 2 * (i + 1)) * log(1 - data[i]);
+        accum += (2 * (i + 1) - 1) * log(data[i]) + 
+                 (2 * len + 1 - 2 * (i + 1)) * log(1 - data[i]);
     }
 
+    // Compute test statistic with sample size correction
     double A2 = -len - (1.0 / len) * accum;
+    A2 *= (1 + 5.4 / len - 11.0 / (len * len));  // Small sample correction
 
-    // do the following since parameters come from sample (D'Agostino table 4.14)
-    A2 *= (1 + 5.4 / len - 11.0 / (len * len));
+    // Compare against critical value
+    bool reject = (A2 > thresh);  // Reject if statistic exceeds threshold
 
-    double stat = A2; // this statistic follows certain right-tailed distribution. We can set in
-                      // that distribution a threshold value (in its support)
-                      // corresponding to a given significance level. 
-                      // Then, if the value calculated for the statistic falls 
-                      // above that threshold, the hypothesis should be rejected
-                      // (this is easier as the significance level grows).
-                      // The p-value is the probability of the statistic distribution to
-                      // produce a value of the statistic equal to or greater than the
-                      // calculated one. The p-value will shrink as more strongly rejected
-                      // is the null hypothesis. We do not calculate it here
-                      // because the distribution of the statistic is not found in
-                      // the book.
-
-    // test the hypothesis 
-    bool reject = (stat > thresh); // equivalently, the p-value is smaller than the significant level
-
-    return {reject, {stat, thresh}};
+    return {reject, {A2, thresh}};
 }

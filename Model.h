@@ -9,6 +9,9 @@ const double eps = numeric_limits<double>::epsilon();
 const double Inf = numeric_limits<double>::max();
 const double NaN = numeric_limits<double>::quiet_NaN();
 
+#define MIN(a,b) ((a) < (b) ? a : b) 
+#define MAX(a,b) ((a) > (b) ? a : b)
+
 enum ModelType {
     None = 0,
     LL3 = 1,
@@ -28,7 +31,7 @@ struct ModelParams {
     double sigma = NaN;  // Standard deviation
     // Exponential model
     double alpha = NaN;  // location of the distribution 
-    double beta = NaN;  // 1/beta mean of the distribution
+    double beta = NaN;   // 1/beta mean of the distribution
 };
 
 struct GoF { // Goodness of fit

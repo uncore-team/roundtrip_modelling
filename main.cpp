@@ -37,8 +37,9 @@ string model_to_string(ModelType model_type) {
 }
 
 void print_model(const Model& model) {
+
     if (!model.defined) {
-        cout << "Model is not defined." << endl;
+        cout << "\nModel is not defined." << endl;
         return;
     }
 
@@ -104,7 +105,7 @@ int main() {
                 // Get the final model
                 print_model(onlineRANSAC.get_model());
 
-                return 0; // just for testing the first iteration
+//                return 0; // just for testing the first iteration
             }
         }
     }

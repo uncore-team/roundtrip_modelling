@@ -1,3 +1,16 @@
+/**
+ * @brief Implementation of the OnlineRANSAC class for real-time outlier detection.
+ * 
+ * Provides methods for:
+ * - Online model fitting and assessment
+ * - Multiple distribution support (Log-logistic, Log-normal, Exponential)
+ * - Model preservation strategies
+ * - Sample sliding/forgetting mechanisms
+ * - Dynamic model updating
+ * 
+ * Based on RANSAC (Random Sample Consensus) algorithm adapted for online processing.
+ */
+
 #include <stdexcept>
 #include <tuple>
 #include <optional>
@@ -11,18 +24,29 @@
 
 using namespace std;
 
+/**
+ * @brief Constructor for OnlineRANSAC class.
+ * 
+ * @param min_len Minimum number of samples needed to start modeling
+ * @param max_len Maximum number of samples to maintain
+ * @param model_preserving Model preservation strategy:
+ *        - 0: No preservation
+ *        - 1: First preserve, then rebuild
+ *        - 2: First rebuild, then preserve
+ * @param sample_sliding Sample window strategy:
+ *        - 0: Forgetting (reset)
+ *        - 1: Sliding window
+ * @param data_preserving Data preservation strategy:
+ *        - 0: Forgetting
+ *        - 1: Preserving
+ * @param model_types Vector of distribution types to try fitting
+ * 
+ * @throws invalid_argument if:
+ *         - min_len <= 1
+ *         - max_len <= min_len
+ *         - model_types is empty
+ */
 OnlineRANSAC::OnlineRANSAC(unsigned min_len, unsigned max_len, unsigned model_preserving = 0, unsigned sample_sliding = 0, unsigned data_preserving = 0, vector<ModelType> model_types = {}) {
-//           min_len -> minimum number of round-trip times to start modelling.
-//           max_len -> maximum number of round-trip times to be modelled. 
-//                      If NaN, no maximum.
-//           model_preserving -> either 0 (no preserving), 1 (first
-//                               preserve, then rebuild), or 2 (first
-//                               rebuild, then preserve).
-//           sample_sliding -> either 0 (forgetting) or 1 (sliding).
-//           data_preserving -> either 0 (forgetting) or 1 (preserving).
-//           model_estimators -> a map with as many ModelType as we wish
-//                               to use for modelling, in the same
-//                               order we wish to try them at modelling.
 
     // sanity checks
     if (min_len <= 1) {
@@ -56,17 +80,15 @@ OnlineRANSAC::OnlineRANSAC(unsigned min_len, unsigned max_len, unsigned model_pr
     }
 }
 
+/**
+ * @brief Assesses data against multiple distribution models
+ * 
+ * Tries to fit each model type in order until finding one that fits well.
+ * 
+ * @param samples Vector of observations to fit
+ * @return Model structure containing the first successful fit, or empty if none fit
+ */
 Model OnlineRANSAC::assess(const vector<double>& samples) {
-// If MODELS is a vector with some model types, select the first one that 
-// fits ok to the data in S and is assessed with GoF; if models
-// is a model, just assesses it with GoF.
-//
-// samples -> samples to fit/gof.
-// MODELS -> either a vector with as many entries as model types, each one a 
-//           text, or a model already defined (see ModelCreate).
-//
-// M <- model fitted/gofed to the data or a copy of MODELS if
-//      MODELS is a model. Empty in any case the assessment fails.
 
     for (auto& [key, estimator] : m_model_estimators) {
         Model model = estimator->fit(samples);
@@ -77,25 +99,30 @@ Model OnlineRANSAC::assess(const vector<double>& samples) {
     return Model();
 }
 
+/**
+ * @brief Updates the model with a new sample
+ * 
+ * Implements one step of the online RANSAC algorithm:
+ * 1. Adds new sample to data
+ * 2. Updates/preserves model based on strategy
+ * 3. Maintains sample window
+ * 
+ * @param sample New observation to process
+ * @return Exit branch indicating result:
+ *         1: No model yet
+ *         2: Model updated
+ *         3: Model preserved
+ * 
+ * @throws invalid_argument if model_preserving is invalid
+ */
 int OnlineRANSAC::update(double sample) {
-// Do one step of the on-line RANSAC algorithm for modelling round-trip times.
-//
-// sample -> the current round-trip time, to be processed in this call.
-//
-// EXITBRANCH <- reason of exit:
-//               '1' <- no model yet
-//               '2' <- model updated
-//               '3' <- model preserved
 
-    // --- preparation of data
     vector<double> samples = m_state.samples;
-
-    // --- core of the algorithm
-    int exitbranch;
-    Model model;
-
     samples.push_back(sample); // add new sample to the list
     unsigned len = samples.size();
+
+    int exitbranch;
+    Model model;
 
     if (len < m_min_len) {
         exitbranch = 1;
@@ -200,10 +227,20 @@ int OnlineRANSAC::update(double sample) {
     return exitbranch;
 }
 
+/**
+ * @brief Resets the algorithm state
+ * 
+ * Clears current model and samples, returning to initial state
+ */
 void OnlineRANSAC::reset() {
     m_state = State();
 }
 
+/**
+ * @brief Returns the current model
+ * 
+ * @return Current model structure, or empty if no model exists
+ */
 Model OnlineRANSAC::get_model() {
     return m_state.model;
 }
