@@ -6,6 +6,8 @@
 #include <numeric>
 #include <memory>
 #include <vector>
+#include <random>
+#include <stdexcept>
 #include <tuple>
 
 #include "Model.h"
@@ -58,13 +60,68 @@ public:
      */
     virtual tuple<bool, GoF> gof(const ModelParams& params, const vector<double>& samples) = 0;
 
-    virtual double cdf(const ModelParams& params, double sample) = 0;
-    virtual double pdf(const ModelParams& params, double sample) = 0;
+    /**
+     * @brief Calculates the cumulative distribution function (CDF) for a single value
+     * 
+     * @param params Distribution parameters specific to each derived class
+     * @param sample Single input value to evaluate
+     * @return CDF value at the given sample point
+     */
+    virtual double cdf(const ModelParams& params, const double& sample) = 0;
+
+    /**
+     * @brief Calculates the CDF for a vector of values
+     * 
+     * @param params Distribution parameters specific to each derived class
+     * @param samples Vector of input values to evaluate
+     * @return Vector of CDF values corresponding to each input sample
+     */
+    virtual vector<double> cdf(const ModelParams& params, const vector<double>& samples) = 0;
+
+    /**
+     * @brief Calculates the probability density function (PDF) for a single value
+     * 
+     * @param params Distribution parameters specific to each derived class
+     * @param sample Single input value to evaluate
+     * @return PDF value at the given sample point
+     */
+    virtual double pdf(const ModelParams& params, const double& sample) = 0;
+
+    /**
+     * @brief Calculates the PDF for a vector of values
+     * 
+     * @param params Distribution parameters specific to each derived class
+     * @param samples Vector of input values to evaluate
+     * @return Vector of PDF values corresponding to each input sample
+     */
+    virtual vector<double> pdf(const ModelParams& params, const vector<double>& samples) = 0;
+
+    /**
+     * @brief Generates a single random value from the distribution
+     * 
+     * @param params Distribution parameters specific to each derived class
+     * @return Single random value following the distribution
+     */
     virtual double rnd(const ModelParams& params) = 0;
 
+    /**
+     * @brief Generates multiple random values from the distribution
+     * 
+     * @param params Distribution parameters specific to each derived class
+     * @param length Number of random values to generate
+     * @return Vector of random values following the distribution
+     */
+    virtual vector<double> rnd(const ModelParams& params, const unsigned& length) = 0;
 
 protected:
     unsigned m_min_len;  ///< Minimum required sample size
+
+    /**
+     * @brief Random number generation members
+     */
+    random_device m_rnd_dev;
+    mt19937 m_rnd_gen;
+    uniform_real_distribution<double> m_unif_dist;  ///< Uniform distribution between 0 and 1
 
     /**
      * @brief Utility functions for statistical calculations

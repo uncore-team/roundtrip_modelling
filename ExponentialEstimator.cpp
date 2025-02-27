@@ -8,7 +8,12 @@
  * 
  * Based on D'Agostino & Stephens (1986), Chapter 4.
  */
-
+#ifdef _OPENMP
+    #include <omp.h>
+    #pragma message("Compiling ExponentialEstimator with OpenMP support.")
+#else
+    #pragma message("Compiling ExponentialEstimator without OpenMP support.")
+#endif
 #include "ExponentialEstimator.h"
 
 using namespace std;
@@ -135,4 +140,205 @@ tuple<bool, GoF> ExponentialEstimator::gof(const ModelParams& params, const vect
     bool reject = (A2 > thresh);  // Reject if statistic exceeds threshold
 
     return {reject, {A2, thresh}};
+}
+
+/**
+ * Calculates the cumulative distribution function (CDF) for a single value from 
+ * the exponential distribution. Implements the analytical form of the CDF based
+ * on the two-parameter exponential distribution.
+ * 
+ * @param params Distribution parameters {alpha, beta} where:
+ *        - alpha: location parameter (minimum possible value)
+ *        - beta: rate parameter (1/mean)
+ * @param sample Single input value to evaluate
+ * 
+ * @return CDF value F(x) = 1 - exp(-beta * (x - alpha))
+ * 
+ * Implementation details:
+ * - Handles boundary conditions implicitly
+ * - Uses location-scale parameterization
+ * - Based on D'Agostino & Stephens (1986), p. 133
+ */
+double ExponentialEstimator::cdf(const ModelParams& params, const double& sample) {
+
+    const double alpha = params.alpha;
+    const double beta = params.beta;
+    const double diff = sample - alpha;
+    
+    return (diff <= 0) ? 0.0 : 1.0 - exp(-beta * diff);
+}
+
+/**
+ * Calculates the cumulative distribution function (CDF) for multiple values from
+ * the exponential distribution. Provides vectorized implementation for efficiency
+ * on large datasets.
+ * 
+ * @param params Distribution parameters {alpha, beta} where:
+ *        - alpha: location parameter (minimum possible value)
+ *        - beta: rate parameter (1/mean)
+ * @param samples Vector of input values to evaluate
+ * 
+ * @return Vector of CDF values F(x) = 1 - exp(-beta * (x - alpha))
+ * 
+ * Implementation details:
+ * - Pre-computes common terms outside the loop for efficiency
+ * - Sequential implementation for better cache utilization
+ * - Returns vector of same size as input samples
+ */
+vector<double> ExponentialEstimator::cdf(const ModelParams& params, const vector<double>& samples) {
+
+    const double alpha = params.alpha;
+    const double beta = params.beta;
+
+    const size_t len = samples.size();
+    vector<double> cdf(len);
+    
+    #ifdef _OPENMP
+        #pragma omp parallel for if(len > 1000)
+    #endif
+    for (size_t i = 0; i < len; ++i) {
+        const double diff = samples[i] - alpha;
+        cdf[i] = (diff <= 0) ? 0.0 : 1.0 - exp(-beta * diff);
+    }
+    return cdf;
+}
+
+/**
+ * Calculates the probability density function (PDF) for a single value from
+ * the exponential distribution. Implements the analytical form of the PDF.
+ * 
+ * @param params Distribution parameters {alpha, beta} where:
+ *        - alpha: location parameter
+ *        - beta: rate parameter (1/mean)
+ * @param sample Single input value to evaluate
+ * 
+ * @return PDF value f(x) = beta * exp(-beta * (x - alpha))
+ * 
+ * Implementation details:
+ * - Validates beta parameter (must be positive)
+ * - Based on D'Agostino & Stephens (1986), p. 133
+ * 
+ * @throws invalid_argument if beta <= 0
+ */
+double ExponentialEstimator::pdf(const ModelParams& params, const double& sample) {
+
+    const double alpha = params.alpha;
+    const double beta = params.beta;
+
+    if (beta <= 0) {
+        throw invalid_argument("Invalid beta for exponential distr.");
+    }
+
+    const double diff = sample - alpha;
+    return (diff <= 0) ? 0.0 : beta * exp(-beta * diff);
+}
+
+/**
+ * Calculates the probability density function (PDF) for multiple values from
+ * the exponential distribution. Provides vectorized implementation for efficiency.
+ * 
+ * @param params Distribution parameters {alpha, beta} where:
+ *        - alpha: location parameter
+ *        - beta: rate parameter (1/mean)
+ * @param samples Vector of input values to evaluate
+ * 
+ * @return Vector of PDF values f(x) = beta * exp(-beta * (x - alpha))
+ * 
+ * Implementation details:
+ * - Validates beta parameter (must be positive)
+ * 
+ * @throws invalid_argument if beta <= 0
+ */
+vector<double> ExponentialEstimator::pdf(const ModelParams& params, const vector<double>& samples) {
+
+    const double alpha = params.alpha;
+    const double beta = params.beta;
+
+    if (beta <= 0) {
+        throw invalid_argument("Invalid beta for exponential distr.");
+    }
+
+    const size_t len = samples.size();
+    vector<double> pdf(len);
+
+    #ifdef _OPENMP
+        #pragma omp parallel for if(len > 1000)
+    #endif
+    for (size_t i = 0; i < len; ++i) {
+        const double diff = samples[i] - alpha;
+        pdf[i] = (diff <= 0) ? 0.0 : beta * exp(-beta * diff);
+    }
+    return pdf;
+}
+
+/**
+ * Generates a single random value from the exponential distribution using
+ * the inverse transform sampling method. Uses the uniform distribution
+ * inherited from the base class.
+ * 
+ * @param params Distribution parameters {alpha, beta} where:
+ *        - alpha: location parameter
+ *        - beta: rate parameter (1/mean)
+ * @return Random value following the exponential distribution
+ * 
+ * Uses inverse transform sampling with the formula:
+ * X = -ln(1-u)/beta + alpha
+ * where u ~ U(0,1)
+ * 
+ * Implementation details:
+ * - Validates beta parameter (must be positive)
+ * - Uses uniform distribution from base class
+ * - Applies location-scale transformation
+ * 
+ * @throws invalid_argument if beta <= 0
+ */
+double ExponentialEstimator::rnd(const ModelParams& params) {
+
+    const double alpha = params.alpha;
+    const double beta = params.beta;
+
+    if (beta <= 0) {
+        throw invalid_argument("Invalid beta for exponential distribution");
+    }
+
+    const double p = m_unif_dist(m_rnd_gen);
+    return -log(1.0 - p) / beta + alpha;
+}    
+
+/**
+ * Generates multiple random values from the exponential distribution using
+ * vectorized inverse transform sampling. Optimized for generating large
+ * numbers of random values efficiently.
+ * 
+ * @param params Distribution parameters {alpha, beta} where:
+ *        - alpha: location parameter
+ *        - beta: rate parameter (1/mean)
+ * @param length Number of random values to generate
+ * 
+ * @return Vector of random values following the exponential distribution
+ * 
+ * Implementation details:
+ * - Validates beta parameter (must be positive)
+ * 
+ * @throws invalid_argument if beta <= 0
+ */
+vector<double> ExponentialEstimator::rnd(const ModelParams& params, const unsigned& length) {
+
+    const double alpha = params.alpha;
+    const double beta = params.beta;
+
+    if (beta <= 0) {
+        throw invalid_argument("Invalid beta for exponential distribution");
+    }
+
+    vector<double> samples(length);
+
+    #ifdef _OPENMP
+        #pragma omp parallel for if(length > 1000)
+    #endif
+    for (unsigned i = 0; i < length; ++i) {
+        const double p = m_unif_dist(m_rnd_gen);
+        samples[i] = -log(1.0 - p) / beta + alpha;
+    }
+    return samples;
 }

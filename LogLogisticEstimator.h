@@ -1,13 +1,6 @@
 #ifndef LOGLOGISTIC_ESTIMATOR_H
 #define LOGLOGISTIC_ESTIMATOR_H
 
-#include <algorithm>
-#include <cmath>
-#include <numeric>
-#include <stdexcept>
-#include <tuple>
-#include <vector>
-
 #include "Estimator.h"
 
 using namespace std;
@@ -60,6 +53,15 @@ public:
      * @throws invalid_argument if b <= 0 or c <= 0 or samples.size() < 10
      */
     tuple<bool, GoF> gof(const ModelParams& params, const vector<double>& samples) override;  // bool previous_model
+
+    virtual double cdf(const ModelParams& params, const double& sample) override;
+    virtual vector<double> cdf(const ModelParams& params, const vector<double>& samples) override;
+
+    virtual double pdf(const ModelParams& params, const double& sample) override;
+    virtual vector<double> pdf(const ModelParams& params, const vector<double>& samples) override;
+
+    virtual double rnd(const ModelParams& params) override;
+    virtual vector<double> rnd(const ModelParams& params, const unsigned& length) override;
 
 private:
     /**

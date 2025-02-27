@@ -599,3 +599,225 @@ tuple<bool, GoF> LogLogisticEstimator::gof(const ModelParams& params, const vect
 
     return {reject, {stat, thresh}};
 }
+
+/**
+ * Calculates the cumulative distribution function (CDF) for a single value from 
+ * the log-logistic distribution. Implements the analytical form of the CDF based
+ * on the three-parameter log-logistic distribution.
+ * 
+ * @param params Distribution parameters {a, b, c} where:
+ *        - a (offset): location parameter (minimum possible value)
+ *        - b (alpha): scale parameter
+ *        - c (sigma): shape parameter
+ * @param sample Single input value to evaluate
+ * 
+ * @return CDF value F(x) = 1/(1 + ((x-a)/b)^(-1/c))
+ * 
+ * Implementation details:
+ * - Handles boundary conditions (x <= a) explicitly
+ * - Uses location-scale parameterization
+ * - Returns 0 for values <= location parameter
+ */
+double LogLogisticEstimator::cdf(const ModelParams& params, const double& sample) {
+
+    const double offset = params.a;
+    const double alpha = params.b;
+    const double beta = 1.0 / params.c;
+
+    if (sample <= offset) {
+        return 0.0;  // For x <= a, CDF is 0
+    }
+    return 1.0 / (1.0 + pow((sample - offset) / alpha, -beta));
+}
+
+/**
+ * Calculates the cumulative distribution function (CDF) for multiple values from
+ * the log-logistic distribution. Provides vectorized implementation for efficiency
+ * on large datasets.
+ * 
+ * @param params Distribution parameters {a, b, c} where:
+ *        - a (offset): location parameter (minimum possible value)
+ *        - b (alpha): scale parameter
+ *        - c (sigma): shape parameter
+ * @param samples Vector of input values to evaluate
+ * 
+ * @return Vector of CDF values F(x) = 1/(1 + ((x-a)/b)^(-1/c))
+ * 
+ * Implementation details:
+ * - Uses OpenMP for parallel computation when dataset is large (>1000 samples)
+ * - Pre-computes common terms outside the loop for efficiency
+ * - Handles boundary conditions (x <= a) explicitly
+ * - Returns vector of same size as input samples
+ */
+vector<double> LogLogisticEstimator::cdf(const ModelParams& params, const vector<double>& samples) {
+
+    const double offset = params.a;
+    const double alpha = params.b;
+    const double beta = 1.0 / params.c;
+
+    size_t len = samples.size();
+    vector<double> cdf(len);
+    
+    #ifdef _OPENMP
+        #pragma omp parallel for if(len > 1000)
+    #endif
+    for (size_t i = 0; i < len; ++i) {
+        if (samples[i] <= offset) {
+            cdf[i] = 0.0;
+        } else {
+            cdf[i] = 1.0 / (1.0 + pow((samples[i] - offset) / alpha, -beta));
+        }
+    }
+    return cdf;
+}
+
+/**
+ * Calculates the probability density function (PDF) for a single value from
+ * the log-logistic distribution. Implements the analytical form of the PDF.
+ * 
+ * @param params Distribution parameters {a, b, c} where:
+ *        - a (offset): location parameter (minimum possible value)
+ *        - b (alpha): scale parameter
+ *        - c (sigma): shape parameter
+ * @param sample Single input value to evaluate
+ * 
+ * @return PDF value f(x) = (β/α)((x-a)/α)^(β-1)/(1+((x-a)/α)^β)^2
+ * where β = 1/c
+ * 
+ * Implementation details:
+ * - Pre-computes common terms for efficiency
+ * - Handles boundary conditions (x <= a) explicitly
+ * - Uses transformed parameters for numerical stability
+ */
+double LogLogisticEstimator::pdf(const ModelParams& params, const double& sample) {
+    const double offset = params.a;
+    const double alpha = params.b;
+    const double sigma = params.c;
+    const double beta = 1.0 / params.c;
+
+    if (sample <= offset) {
+        return 0.0;
+    }
+
+    const double temp = pow((sample - offset) / alpha, -beta);
+    return temp / (sigma * (sample - offset) * pow(1.0 + temp, 2));
+}
+
+/**
+ * Calculates the probability density function (PDF) for multiple values from
+ * the log-logistic distribution. Provides vectorized implementation for efficiency.
+ * 
+ * @param params Distribution parameters {a, b, c} where:
+ *        - a (offset): location parameter (minimum possible value)
+ *        - b (alpha): scale parameter
+ *        - c (sigma): shape parameter
+ * @param samples Vector of input values to evaluate
+ * 
+ * @return Vector of PDF values f(x) = (β/α)((x-a)/α)^(β-1)/(1+((x-a)/α)^β)^2
+ * where β = 1/c
+ * 
+ * Implementation details:
+ * - Uses OpenMP for parallel computation when dataset is large (>1000 samples)
+ * - Pre-computes common terms outside the loop for efficiency
+ * - Handles boundary conditions (x <= a) explicitly
+ */
+vector<double> LogLogisticEstimator::pdf(const ModelParams& params, const vector<double>& samples) {
+    // Get and validate parameters
+    const double offset = params.a;
+    const double alpha = params.b;
+    const double sigma = params.c;
+    const double beta = 1.0 / params.c;
+
+    // Calculate the PDF for the loglogistic distribution
+    const size_t len = samples.size();
+    vector<double> pdf(len);
+
+    #ifdef _OPENMP
+        #pragma omp parallel for if(len > 1000)
+    #endif
+    for (size_t i = 0; i < len; ++i) {
+        if (samples[i] <= offset) {
+            pdf[i] = 0;  // For x <= a, PDF is 0
+        } else {
+            const double temp = pow((samples[i] - offset) / alpha, -beta);
+            pdf[i] = temp / (sigma * (samples[i] - offset) * pow(1.0 + temp, 2));
+        }
+    }
+    return pdf;
+}
+
+/**
+ * Generates a single random value from the log-logistic distribution using
+ * the inverse transform sampling method. Uses the uniform distribution
+ * inherited from the base class.
+ * 
+ * @param params Distribution parameters {a, b, c} where:
+ *        - a (offset): location parameter (minimum possible value)
+ *        - b (alpha): scale parameter
+ *        - c (sigma): shape parameter
+ * @return Random value following the log-logistic distribution
+ * 
+ * Uses inverse transform sampling with the formula:
+ * X = a + exp(μ + σ*log(p/(1-p)))
+ * where:
+ * - μ = log(b)
+ * - σ = c
+ * - p ~ U(0,1)
+ * 
+ * Implementation details:
+ * - Uses uniform distribution from base class
+ * - Pre-computes common terms for efficiency
+ * - Applies location-scale transformation
+ */
+double LogLogisticEstimator::rnd(const ModelParams& params) {
+    const double offset = params.a;
+    const double mu = log(params.b);
+    const double sigma = params.c;
+
+    const double p = m_unif_dist(m_rnd_gen);
+    return offset + exp(mu + sigma * log(p / (1.0 - p)));
+}
+
+/**
+ * Generates multiple random values from the log-logistic distribution using
+ * vectorized inverse transform sampling. Optimized for generating large
+ * numbers of random values efficiently.
+ * 
+ * @param params Distribution parameters {a, b, c} where:
+ *        - a (offset): location parameter (minimum possible value)
+ *        - b (alpha): scale parameter
+ *        - c (sigma): shape parameter
+ * @param length Number of random values to generate
+ * @return Vector of random values following the log-logistic distribution
+ * 
+ * Uses inverse transform sampling with the formula:
+ * X = a + exp(μ + σ*log(p/(1-p)))
+ * where:
+ * - μ = log(b)
+ * - σ = c
+ * - p ~ U(0,1)
+ * 
+ * Implementation details:
+ * - Uses OpenMP for parallel generation when length > 1000
+ * - Reuses uniform distribution from base class
+ * - Pre-computes common terms for efficiency
+ */
+vector<double> LogLogisticEstimator::rnd(const ModelParams& params, const unsigned& length) {
+    // Parameters
+    const double offset = params.a;
+    const double alpha = params.b;
+    const double sigma = params.c;
+    const double mu = log(alpha);
+
+    // Generate 'length' data from loglogistic distribution
+    vector<double> rnd(length);
+
+    #ifdef _OPENMP
+        #pragma omp parallel for if(length > 1000)
+    #endif
+    for (unsigned i = 0; i < length; ++i) {
+        const double p = m_unif_dist(m_rnd_gen);  // Generate random number from uniform distribution
+        rnd[i] = offset + exp(mu + sigma * log(p / (1.0 - p)));
+    }
+    return rnd;
+}

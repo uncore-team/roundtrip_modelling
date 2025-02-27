@@ -31,8 +31,14 @@ public:
     //          the statistic of the goodness of fit test, and the threshold value.
     tuple<bool, GoF> gof(const ModelParams& params, const vector<double>& samples) override;  // bool previous_model
 
-private:
-    int m_min_len;
+    virtual double cdf(const ModelParams& params, const double& sample) override;
+    virtual vector<double> cdf(const ModelParams& params, const vector<double>& samples) override;
+
+    virtual double pdf(const ModelParams& params, const double& sample) override;
+    virtual vector<double> pdf(const ModelParams& params, const vector<double>& samples) override;
+
+    virtual double rnd(const ModelParams& params) override;
+    virtual vector<double> rnd(const ModelParams& params, const unsigned& length) override;
 };
 
 #endif // LOGNORMAL_ESTIMATOR_H

@@ -13,7 +13,7 @@ using namespace std;
  * @brief Constructor initializing minimum sample size requirement
  * @param min_len Minimum number of samples needed for reliable estimation
  */
-Estimator::Estimator(unsigned min_len) : m_min_len(min_len) {
+Estimator::Estimator(unsigned min_len) : m_min_len(min_len), m_rnd_gen(m_rnd_dev()), m_unif_dist(0.0, 1.0) {
 }
 
 /**
