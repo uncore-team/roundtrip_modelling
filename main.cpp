@@ -39,7 +39,7 @@ string model_to_string(ModelType model_type) {
 void print_model(const Model& model) {
 
     if (!model.defined) {
-        cout << "\nModel is not defined." << endl;
+        cout << "\nModel Type: NOT defined." << endl;
         return;
     }
 
@@ -71,7 +71,7 @@ void print_model(const Model& model) {
 int main() {
 
     // Read RTTs from a file
-    string filename = "rtts.txt";
+    string filename = "matlab/rtts.txt";
     vector<double> samples = read_data(filename);
 
     // List the estimators
@@ -81,7 +81,7 @@ int main() {
     for(int model_preserving = 0; model_preserving < 3; ++model_preserving) {
         for (int sample_sliding = 0; sample_sliding < 2; ++sample_sliding) {
             for (int data_preserving = 0; data_preserving < 2; ++data_preserving) {
-                
+
                 cout << endl << "model_preserving[" << model_preserving << "] "
                     << "sample_sliding[" << sample_sliding << "] "
                     << "data_preserving[" << data_preserving << "]";
@@ -94,12 +94,11 @@ int main() {
                 );
                 for (int f = 0; f < len; ++f) {
 
-            //        auto t1 = chrono::high_resolution_clock::now();
-                    //auto exitbranch =
-                    onlineRANSAC.update(samples[f]);
-                    // cout << "#" << (f+1) << " exitbranch[" << exitbranch << "]" << endl;
-            //        auto t2 = chrono::high_resolution_clock::now();
-            //        chrono::duration<double> ct = t2 - t1;
+                    // auto t1 = chrono::high_resolution_clock::now();
+                    auto exitbranch = onlineRANSAC.update(samples[f]);
+                    // auto t2 = chrono::high_resolution_clock::now();
+                    // chrono::duration<double> ct = t2 - t1;
+                    // cout << "#" << (f+1) << ", exitbranch[" << exitbranch << "], time[" << ct.count() << "]" << endl;
                 }
 
                 // Get the final model
