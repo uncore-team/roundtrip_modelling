@@ -118,12 +118,13 @@ Model OnlineRANSAC::assess(const vector<double>& samples) {
 int OnlineRANSAC::update(double sample) {
 
     vector<double> samples = m_state.samples;
+    Model model = m_state.model;
+
     samples.push_back(sample); // add new sample to the list
     unsigned len = samples.size();
 
+    // --- assessing model (algorithm core)
     int exitbranch;
-    Model model;
-
     if (len < m_min_len) {
         exitbranch = 1;
     } else if (len == m_min_len) {
@@ -146,7 +147,6 @@ int OnlineRANSAC::update(double sample) {
             }
             case 1: {
                 bool preserved = false;
-                model = m_state.model;
                 if (model.defined) {
                     Estimator::Ptr& estimator = m_model_estimators[model.type];
                     auto [reject, gof] = estimator->gof(model.params, samples); // assess existing model
@@ -171,7 +171,6 @@ int OnlineRANSAC::update(double sample) {
                 if (model.defined) {
                     exitbranch = 2;
                 } else {
-                    model = m_state.model;
                     if (model.defined) {
                         Estimator::Ptr& estimator = m_model_estimators[model.type];
                         auto [reject, gof] = estimator->gof(model.params, samples); // assess existing model
@@ -193,7 +192,6 @@ int OnlineRANSAC::update(double sample) {
     }
 
     // --- preparing new state
-    len = samples.size();
     if (len > m_max_len) {
         samples = vector<double>(samples.end() - m_max_len, samples.end());
         // if the bounded sample violates current consensus, that will be
@@ -202,13 +200,11 @@ int OnlineRANSAC::update(double sample) {
 
     switch (exitbranch) {
         case 1: { // no model yet
-            if (len >= m_min_len) {
-                if (!m_sample_sliding) {
-                    samples = {sample};
-                }
-                else if (!m_data_preserving){
-                    samples = vector<double>(samples.end() - (m_min_len - 1), samples.end());
-                }
+            if (len > m_min_len && !m_sample_sliding) {
+                samples = {sample};
+            }
+            else if (len >= m_min_len && !m_data_preserving) {
+                samples = vector<double>(samples.end() - (m_min_len - 1), samples.end());
             }
             m_state.samples = samples;
             m_state.model = Model();
