@@ -56,7 +56,12 @@ public:
      *         - bool: true if fit should be rejected
      *         - GoF: {test statistic, critical value}
      */
-    virtual std::tuple<bool, GoF> gof(const ModelParams& params, const vector<double>& samples) = 0;
+    virtual tuple<bool, GoF> gof(const ModelParams& params, const vector<double>& samples) = 0;
+
+    virtual double cdf(const ModelParams& params, double sample) = 0;
+    virtual double pdf(const ModelParams& params, double sample) = 0;
+    virtual double rnd(const ModelParams& params) = 0;
+
 
 protected:
     unsigned m_min_len;  ///< Minimum required sample size
