@@ -49,7 +49,8 @@ ExponentialEstimator::ExponentialEstimator() : Estimator(10) {
  * @throws invalid_argument if samples.size() < m_min_len
  */
 Model ExponentialEstimator::fit(const vector<double>& samples) {
-    int len = samples.size();
+
+    const size_t len = samples.size();
 
     // Validate minimum sample size requirement
     if (len < m_min_len) {
@@ -57,25 +58,20 @@ Model ExponentialEstimator::fit(const vector<double>& samples) {
     }
 
     // Calculate initial estimates using method of moments
-    double min = _min(samples);
-    double mean = _mean(samples);
-    double mu = len * (mean - min) / (len - 1); // Bias-corrected mean estimate
+    const double min = _min(samples);
+    const double mean = _mean(samples);
+    const double mu = len * (mean - min) / static_cast<double>(len - 1); // Bias-corrected mean estimate
 
     // Set distribution parameters
     ModelParams params;
-    params.alpha = min - mu / len;    // Location parameter estimate
-    params.beta = 1 / mu;             // Rate parameter (inverse of mean)
+    params.alpha = min - mu / static_cast<double>(len);  // Location parameter estimate
+    params.beta = 1 / mu;  // Rate parameter (inverse of mean)
 
     // Perform goodness of fit test
     auto [reject, gof_] = gof(params, samples);
 
     // Return model only if fit is acceptable
-    if (!reject) {
-        return {true, ModelType::EXP, params, gof_};
-    }
-    else { 
-        return Model(); // Return invalid model if fit is rejected
-    }
+    return reject ? Model() : Model{true, ModelType::EXP, params, gof_};
 }
 
 /**
@@ -102,11 +98,12 @@ Model ExponentialEstimator::fit(const vector<double>& samples) {
  *         - samples.size() < m_min_len
  */
 tuple<bool, GoF> ExponentialEstimator::gof(const ModelParams& params, const vector<double>& samples) {
-    int len = samples.size();
-    double mu = 1 / params.beta;      // Convert rate to mean for calculations
-    double alpha = params.alpha;       // Location parameter
-    double beta = params.beta;         // Rate parameter
-    double thresh = 1.321;            // Critical value from D'Agostino table 4.14
+
+    const size_t len = samples.size();
+    const double mu = 1 / params.beta;   // Convert rate to mean for calculations
+    const double alpha = params.alpha;   // Location parameter
+    const double beta = params.beta;     // Rate parameter
+    const double thresh = 1.321;         // Critical value from D'Agostino table 4.14
 
     // Validate parameters
     if (beta <= 0) {
@@ -118,28 +115,31 @@ tuple<bool, GoF> ExponentialEstimator::gof(const ModelParams& params, const vect
 
     // Transform data to uniform using exponential CDF
     vector<double> data(len);
-    transform(
-        samples.begin(), samples.end(),
-        data.begin(),
-        [alpha, mu](double sample) { return 1 - exp(-(sample - alpha) / mu); }
-    );
+    #ifdef _OPENMP
+        #pragma omp parallel for if(len > 1000)
+    #endif
+    for(size_t i = 0; i < len; ++i) {
+        data[i] = 1.0 - std::exp(-(samples[i] - alpha) / mu);
+    }
     sort(data.begin(), data.end());
 
     // Calculate Anderson-Darling statistic (A²)
     double accum = 0.0;
-    for (int i = 0; i < len; ++i) {
-        accum += (2 * (i + 1) - 1) * log(data[i]) + 
-                 (2 * len + 1 - 2 * (i + 1)) * log(1 - data[i]);
+    #ifdef _OPENMP
+        #pragma omp parallel for reduction(+:accum) if(len > 1000)
+    #endif    
+    for (size_t i = 0; i < len; ++i) {
+        const double term1 = (2.0 * (i + 1) - 1.0) * std::log(data[i]);
+        const double term2 = (2.0 * len + 1.0 - 2.0 * (i + 1)) * std::log(1.0 - data[i]);
+        accum += term1 + term2;
     }
 
-    // Compute test statistic with sample size correction
-    double A2 = -len - (1.0 / len) * accum;
-    A2 *= (1 + 5.4 / len - 11.0 / (len * len));  // Small sample correction
+    // Apply correction factors
+    const double lenf = static_cast<double>(len);
+    const double A2 = (-lenf - accum/lenf) * 
+                     (1.0 + 5.4/lenf - 11.0/(lenf * lenf));
 
-    // Compare against critical value
-    bool reject = (A2 > thresh);  // Reject if statistic exceeds threshold
-
-    return {reject, {A2, thresh}};
+    return {A2 > thresh, {A2, thresh}};
 }
 
 /**
@@ -341,4 +341,59 @@ vector<double> ExponentialEstimator::rnd(const ModelParams& params, const unsign
         samples[i] = -log(1.0 - p) / beta + alpha;
     }
     return samples;
+}
+
+/**
+ * Calculates the expectation (mean) of the exponential distribution.
+ * Implements the analytical formula for the expectation based on the
+ * two-parameter exponential distribution.
+ * 
+ * @param params Distribution parameters {alpha, beta} where:
+ *        - alpha: location parameter (minimum possible value)
+ *        - beta: rate parameter (1/mean)
+ * @return Expected value E[X] = alpha + 1/beta
+ * 
+ * Implementation details:
+ * - Uses location-scale parameterization
+ * - Direct implementation of analytical formula
+ */
+double ExponentialEstimator::expectation(const ModelParams& params) {
+    return params.alpha + 1.0/params.beta;
+}
+
+/**
+ * Calculates the variance of the exponential distribution.
+ * Implements the analytical formula for the variance based on the
+ * two-parameter exponential distribution.
+ * 
+ * @param params Distribution parameters {alpha, beta} where:
+ *        - alpha: location parameter (minimum possible value)
+ *        - beta: rate parameter (1/mean)
+ * @return Variance Var[X] = 1/beta^2
+ * 
+ * Implementation details:
+ * - Uses rate parameter only (location does not affect variance)
+ * - Pre-computes beta^2 for efficiency
+ */
+double ExponentialEstimator::variance(const ModelParams& params) {
+    const double beta = params.beta;
+    return 1.0/(beta*beta);
+}
+
+/**
+ * Calculates the mode of the exponential distribution.
+ * The mode is the location parameter since the exponential
+ * distribution is monotonically decreasing.
+ * 
+ * @param params Distribution parameters {alpha, beta} where:
+ *        - alpha: location parameter (minimum possible value)
+ *        - beta: rate parameter (1/mean)
+ * @return Mode = alpha (location parameter)
+ * 
+ * Implementation details:
+ * - Mode is independent of rate parameter
+ * - Equal to location parameter by definition
+ */
+double ExponentialEstimator::mode(const ModelParams& params) {
+    return params.alpha;
 }

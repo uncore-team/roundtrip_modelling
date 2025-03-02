@@ -111,6 +111,36 @@ public:
      * @throws invalid_argument if beta <= 0
      */
     virtual vector<double> rnd(const ModelParams& params, const unsigned& length) override;
+
+    /**
+     * @brief Calculates the expected value (mean) of the exponential distribution
+     * 
+     * @param params Distribution parameters {alpha, beta} where:
+     *        - alpha: location parameter
+     *        - beta: rate parameter (1/mean)
+     * @return Expected value E[X] = alpha + 1/beta
+     */
+    virtual double expectation(const ModelParams& params) override;
+
+    /**
+     * @brief Calculates the variance of the exponential distribution
+     * 
+     * @param params Distribution parameters {alpha, beta} where:
+     *        - alpha: location parameter
+     *        - beta: rate parameter (1/mean)
+     * @return Variance Var[X] = 1/beta^2
+     */
+    virtual double variance(const ModelParams& params) override;
+
+    /**
+     * @brief Calculates the mode of the exponential distribution
+     * 
+     * @param params Distribution parameters {alpha, beta} where:
+     *        - alpha: location parameter
+     *        - beta: rate parameter (1/mean)
+     * @return Mode = alpha (location parameter)
+     */
+    virtual double mode(const ModelParams& params) override;
 };
 
 #endif // EXPONENTIAL_ESTIMATOR_H

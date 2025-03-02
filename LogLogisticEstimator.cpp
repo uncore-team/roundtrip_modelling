@@ -821,3 +821,77 @@ vector<double> LogLogisticEstimator::rnd(const ModelParams& params, const unsign
     }
     return rnd;
 }
+
+/**
+ * Calculates the expectation (mean) of the log-logistic distribution.
+ * For shape parameter c > 1, the expectation exists and is given by
+ * the analytical formula.
+ * 
+ * @param params Distribution parameters {a, b, c} where:
+ *        - a: location parameter (minimum possible value)
+ *        - b: scale parameter
+ *        - c: shape parameter
+ * @return Expected value E[X] = a + b*π/(c*sin(π/c)) when c > 1, Inf otherwise
+ * 
+ * Implementation details:
+ * - Validates existence condition (c > 1)
+ * - Uses transformed parameters for numerical stability
+ * - Returns Inf when expectation does not exist
+ */
+double LogLogisticEstimator::expectation(const ModelParams& params) {
+    const double c = params.c;
+    if (c <= 1.0) {
+        return NaN;  // Expectation does not exist for c <= 1
+    }
+    return params.a + params.b * M_PI / (c * sin(M_PI/c));
+}
+
+/**
+ * Calculates the variance of the log-logistic distribution.
+ * For shape parameter c > 2, the variance exists and is given by
+ * the analytical formula.
+ * 
+ * @param params Distribution parameters {a, b, c} where:
+ *        - a: location parameter (minimum possible value)
+ *        - b: scale parameter
+ *        - c: shape parameter
+ * @return Variance when c > 2, Inf otherwise
+ * 
+ * Implementation details:
+ * - Validates existence condition (c > 2)
+ * - Pre-computes common terms for efficiency
+ * - Returns Inf when variance does not exist
+ */
+double LogLogisticEstimator::variance(const ModelParams& params) {
+    const double c = params.c;
+    if (c <= 2.0) {
+        return Inf;  // Variance does not exist for c <= 2
+    }
+    
+    const double b = params.b;
+    const double pi_c = M_PI/c;
+    return b*b * (2*pi_c/(sin(2*pi_c)) - pi_c*pi_c/(sin(pi_c)*sin(pi_c)));
+}
+
+/**
+ * Calculates the mode of the log-logistic distribution.
+ * The mode exists for all parameter values and has an analytical form.
+ * 
+ * @param params Distribution parameters {a, b, c} where:
+ *        - a: location parameter (minimum possible value)
+ *        - b: scale parameter
+ *        - c: shape parameter
+ * @return Mode = a + b*((c-1)/(c+1))^(1/c) when c > 1, a otherwise
+ * 
+ * Implementation details:
+ * - Handles special case c <= 1 (mode at location parameter)
+ * - Uses transformed parameters for numerical stability
+ * - Always exists and is unique
+ */
+double LogLogisticEstimator::mode(const ModelParams& params) {
+    const double c = params.c;
+    if (c <= 1.0) {
+        return params.a;  // Mode at location parameter when c <= 1
+    }
+    return params.a + params.b * pow((c-1)/(c+1), 1.0/c);
+}
