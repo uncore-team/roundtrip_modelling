@@ -99,11 +99,12 @@ Model ExponentialEstimator::fit(const vector<double>& samples) {
  */
 tuple<bool, GoF> ExponentialEstimator::gof(const ModelParams& params, const vector<double>& samples) {
 
-    const size_t len = samples.size();
-    const double mu = 1 / params.beta;   // Convert rate to mean for calculations
     const double alpha = params.alpha;   // Location parameter
     const double beta = params.beta;     // Rate parameter
+    const double mu = 1 / params.beta;   // Convert rate to mean for calculations
     const double thresh = 1.321;         // Critical value from D'Agostino table 4.14
+    const size_t len = samples.size();
+    const double min = _min(samples);
 
     // Validate parameters
     if (beta <= 0) {
@@ -112,32 +113,35 @@ tuple<bool, GoF> ExponentialEstimator::gof(const ModelParams& params, const vect
     if (len < m_min_len) {
         throw invalid_argument("Number of samples is not enough or is zero.");
     }
+    if (min < alpha) {
+        return {true, {Inf, NaN}}; // that model cannot assess these data
+    }
 
     // Transform data to uniform using exponential CDF
     vector<double> data(len);
-    #ifdef _OPENMP
-        #pragma omp parallel for if(len > 1000)
-    #endif
-    for(size_t i = 0; i < len; ++i) {
-        data[i] = 1.0 - std::exp(-(samples[i] - alpha) / mu);
-    }
+    transform(samples.begin(), samples.end(), data.begin(),
+        [alpha, mu](double sample) { 
+            return 1.0 - exp(-(sample - alpha) / mu); 
+        }
+    );
     sort(data.begin(), data.end());
 
-    // Calculate Anderson-Darling statistic (A²)
+    // calculate statistic: A2 for case 3 (both parameters were deduced from
+    // the same sample). This statistic measures the squared distance
+    // between experimental and theoretical Zs, and, indirectly, between 
+    // theoretical and experimental Xs (p. 100)
+    const double lenf = static_cast<double>(len);
     double accum = 0.0;
     #ifdef _OPENMP
         #pragma omp parallel for reduction(+:accum) if(len > 1000)
     #endif    
     for (size_t i = 0; i < len; ++i) {
-        const double term1 = (2.0 * (i + 1) - 1.0) * std::log(data[i]);
-        const double term2 = (2.0 * len + 1.0 - 2.0 * (i + 1)) * std::log(1.0 - data[i]);
-        accum += term1 + term2;
+        accum += (2.0*(i + 1) - 1.0)*log(data[i]) + (2.0*lenf + 1.0 - 2.0*(i + 1))*log(1.0 - data[i]);
     }
+    double A2 = -lenf - accum/lenf;
 
     // Apply correction factors
-    const double lenf = static_cast<double>(len);
-    const double A2 = (-lenf - accum/lenf) * 
-                     (1.0 + 5.4/lenf - 11.0/(lenf * lenf));
+    A2 *= (1.0 + 5.4/lenf - 11.0/lenf/lenf); // Modification D'Agostino & Stephens (1986), p. 138
 
     return {A2 > thresh, {A2, thresh}};
 }
