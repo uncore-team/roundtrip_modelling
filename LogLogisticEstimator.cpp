@@ -23,17 +23,6 @@ using namespace std;
 using namespace alglib;
 
 /**
- * @brief Maximum number of iterations for optimization algorithms
- * 
- * Used in:
- * - c_estimate(): MAX_ITERS/2 iterations
- * - abc_estimate(): MAX_ITERS iterations
- * 
- * A larger value may improve convergence but increase computation time.
- */
-#define MAX_ITERS 100
-
-/**
  * Data structure for single-parameter optimization of shape parameter (c)
  * Used in c_estimate() and c_fvec() functions
  */
@@ -321,11 +310,9 @@ LogLogisticEstimator::LogLogisticEstimator() : Estimator(10) {
  * - Uses bounded optimization to keep c in [0.05, 0.5-eps]
  * - Scales parameter for numerical stability
  * - Uses mean-matching approach for optimization
- * - Maximum iterations set to MAX_ITERS/2
- */
+  */
 int LogLogisticEstimator::c_estimate(const vector<double>& samples, const double& a, const double& b,  double& c) {
 
-    //unsigned len = samples.size();
     double mean = _mean(samples);
     c_optim_data data = {a, b, mean};
 
@@ -341,11 +328,13 @@ int LogLogisticEstimator::c_estimate(const vector<double>& samples, const double
     double bndu1[] = {0.5 - eps};
     bndu.attach_to_ptr(1, bndu1);
 
-    // Optmization setup
+    // Setup ALGLIB optimizer
+    const double diffstep = 1e-3;
+    const ae_int_t maxits = 50;
     minlmstate state;
-    minlmcreatev(1, x, 1e-3, state);
+    minlmcreatev(1, x, diffstep, state);
     minlmsetbc(state, bndl, bndu);
-    minlmsetcond(state, eps, MAX_ITERS / 2);
+    minlmsetcond(state, eps, maxits);
 
     real_1d_array s;
     double scales[] = {1e-6};
@@ -390,13 +379,13 @@ int LogLogisticEstimator::c_estimate(const vector<double>& samples, const double
  *   * c ∈ [0.05, 0.5-eps]
  * - Uses both function values and Jacobian matrix
  * - Implements maximum likelihood estimation
- * - Maximum iterations set to MAX_ITERS
  * - Uses parameter scaling for numerical stability
  */
-int LogLogisticEstimator::abc_estimate(const vector<double>& samples, double& a, double& b,  double& c) {
+int LogLogisticEstimator::abc_estimate(const vector<double>& samples, double& a, double& b, double& c) {
 
-    unsigned len = samples.size();
-    double min = _min(samples);
+    const unsigned len = samples.size();
+    const double min = _min(samples);
+
     abc_optim_data data = {samples, len, min};
 
     // Initial guess of {a, b, c}
@@ -411,11 +400,12 @@ int LogLogisticEstimator::abc_estimate(const vector<double>& samples, double& a,
     double bndu1[] = {min - eps, Inf, 0.5 - eps};
     bndu.attach_to_ptr(3, bndu1);
 
-    // Optmization setup
+    // Setup ALGLIB optimizer
+    const ae_int_t maxits = 100;
     minlmstate state;
     minlmcreatevj(3, x, state);
     minlmsetbc(state, bndl, bndu);
-    minlmsetcond(state, eps, MAX_ITERS);
+    minlmsetcond(state, eps, maxits);
 
     real_1d_array s;
     double scales[] = {1e-6, 1e-6, 1e-6};
@@ -462,9 +452,9 @@ int LogLogisticEstimator::abc_estimate(const vector<double>& samples, double& a,
  */
 Model LogLogisticEstimator::fit(const vector<double>& samples) {
 
-    unsigned len = samples.size();
-    double min = _min(samples);
-    double max = _max(samples);
+    const unsigned len = samples.size();
+    const double min = _min(samples);
+    const double max = _max(samples);
 
     // sanity check
     if (len < m_min_len) {
@@ -490,7 +480,7 @@ Model LogLogisticEstimator::fit(const vector<double>& samples) {
 
     // estimate c parameter first
     int termcode = c_estimate(samples, a, b, c);
-    if(termcode < 0 ) {
+    if(termcode < 0) {
         cerr << "Error: Optimization did not converge. Code: " << termcode << endl;
         return Model(); // return an empty model: {false, ModelType::None, {NAN, NAN, NAN}, {Inf, NAN}}
     }

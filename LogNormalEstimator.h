@@ -132,6 +132,16 @@ public:
      * @return Mode = exp(μ - σ²)
      */
     virtual double mode(const ModelParams& params) override;
+
+private:
+    /**
+     * @brief Estimates the location parameter.
+     * 
+     * @param samples Input data vector
+     * @param gamma Input/Output location parameter
+     * @return Optimization termination type (>0 success, ≤0 failure)
+     */  
+    int gamma_estimate(const vector<double>& samples, double& gamma);
 };
 
 #endif // LOGNORMAL_ESTIMATOR_H
