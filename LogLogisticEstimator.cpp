@@ -537,23 +537,17 @@ Model LogLogisticEstimator::fit(const vector<double>& samples) {
  * - If any sample ≤ location parameter a
  * - If test statistic > threshold (0.660 for parameters from same sample)
  */
-tuple<bool, GoF> LogLogisticEstimator::gof(const ModelParams& params, const vector<double>& samples) { // bool previous_model
+tuple<bool, GoF> LogLogisticEstimator::gof(const ModelParams& params, const vector<double>& samples) {
 
-    // bool previous_model = false;
-    double a = params.a;
-    double b = params.b;
-    double c = params.c;
-    double mu = log(b); // alpha in the book
-    double thresh;
-    // if (previous_model) {
-    //     thresh = 2.492; // for the case that parameters do not come from sample; 0.05, p. 105, table 4.2, right tail
-    // } else {
-        thresh = 0.660; // threshold for the case of parameters coming from sample; 0.05 significance level; page 157, table 4.22, case 3
-    // }
-    int len = samples.size();
+    const double a = params.a;
+    const double b = params.b;
+    const double c = params.c;
+    const double mu = log(b); // alpha in the book
+    const double thresh = 0.660; // threshold for the case of parameters coming from sample; 0.05 significance level; page 157, table 4.22, case 3
+    const size_t len = samples.size();
+    const double min = _min(samples);
 
     // sanity check
-    double min = _min(samples);
     if (min <= a) {
         return {true, {Inf, thresh}}; // cannot accept a distribution if some value falls below its minimum
     }
@@ -571,33 +565,32 @@ tuple<bool, GoF> LogLogisticEstimator::gof(const ModelParams& params, const vect
     // the same sample). This statistic measures the squared distance
     // between experimental and theoretical Zs, and, indirectly, between 
     // theoretical and experimental Xs (p. 100)
+    const double lenf = static_cast<double>(len);
     double accum = 0.0;
-    for (int i = 0; i < len; ++i) {
-        accum += (2 * (i + 1) - 1) * log(data[i]) + (2 * len + 1 - 2 * (i + 1)) * log(1 - data[i]);
+    #ifdef _OPENMP
+        #pragma omp parallel for reduction(+:accum) if(len > 1000)
+    #endif    
+    for (size_t i = 0; i < len; ++i) {
+        accum += (2*(i + 1) - 1) * log(data[i]) + (2*lenf + 1 - 2*(i + 1))*log(1 - data[i]);
     }
+    double A2 = -lenf - accum/lenf;
 
-    double A2 = -len - (1.0 / len) * accum;
-    // if (!previous_model) {
-        A2 *= (1.0 + 0.25 / len); // correction needed because both parameters are deduced from the same sample, table 4.22 case 3
-    // }
+    // Apply correction factors
+    A2 *= (1.0 + 0.25/lenf); // correction needed because both parameters are deduced from the same sample, table 4.22 case 3
+                            // A2 follows certain right-tailed distribution. We can set in
+                            // that distribution a threshold value (in its support)
+                            // corresponding to a given significance level. 
+                            // Then, if the value calculated for the statistic falls 
+                            // above that threshold, the hypothesis should be rejected
+                            // (this is easier as the significance level grows).
+                            // The p-value is the probability of the statistic distribution to
+                            // produce a value of the statistic equal to or greater than the
+                            // calculated one. The p-value will shrink as more strongly rejected
+                            // is the null hypothesis. We do not calculate it here
+                            // because the distribution of the statistic is not found in
+                            // the book.
 
-    double stat = A2; // this statistic follows certain right-tailed distribution. We can set in
-                      // that distribution a threshold value (in its support)
-                      // corresponding to a given significance level. 
-                      // Then, if the value calculated for the statistic falls 
-                      // above that threshold, the hypothesis should be rejected
-                      // (this is easier as the significance level grows).
-                      // The p-value is the probability of the statistic distribution to
-                      // produce a value of the statistic equal to or greater than the
-                      // calculated one. The p-value will shrink as more strongly rejected
-                      // is the null hypothesis. We do not calculate it here
-                      // because the distribution of the statistic is not found in
-                      // the book.
-
-    // test the hypothesis 
-    bool reject = (stat > thresh); // equivalently, the p-value is smaller than the significant level
-
-    return {reject, {stat, thresh}};
+    return {A2 > thresh, {A2, thresh}};
 }
 
 /**
@@ -722,6 +715,7 @@ double LogLogisticEstimator::pdf(const ModelParams& params, const double& sample
  * - Handles boundary conditions (x <= a) explicitly
  */
 vector<double> LogLogisticEstimator::pdf(const ModelParams& params, const vector<double>& samples) {
+
     // Get and validate parameters
     const double offset = params.a;
     const double alpha = params.b;
@@ -770,6 +764,8 @@ vector<double> LogLogisticEstimator::pdf(const ModelParams& params, const vector
  * - Applies location-scale transformation
  */
 double LogLogisticEstimator::rnd(const ModelParams& params) {
+
+    // Get parameters
     const double offset = params.a;
     const double mu = log(params.b);
     const double sigma = params.c;
@@ -803,7 +799,8 @@ double LogLogisticEstimator::rnd(const ModelParams& params) {
  * - Pre-computes common terms for efficiency
  */
 vector<double> LogLogisticEstimator::rnd(const ModelParams& params, const unsigned& length) {
-    // Parameters
+
+    // Get parameters
     const double offset = params.a;
     const double alpha = params.b;
     const double sigma = params.c;
