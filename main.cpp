@@ -75,7 +75,7 @@ int main() {
     vector<double> samples = read_data(filename);
 
     // List the estimators
-    vector<ModelType> model_types = {ModelType::LL3};
+    vector<ModelType> model_types = {ModelType::LN3};
 
     int len = samples.size();
     for(int model_preserving = 0; model_preserving < 3; ++model_preserving) {
@@ -95,7 +95,8 @@ int main() {
                 for (int f = 0; f < len; ++f) {
 
                     // auto t1 = chrono::high_resolution_clock::now();
-                    auto exitbranch = onlineRANSAC.update(samples[f]);
+                    //auto exitbranch = 
+                    onlineRANSAC.update(samples[f]);
                     // auto t2 = chrono::high_resolution_clock::now();
                     // chrono::duration<double> ct = t2 - t1;
                     // cout << "#" << (f+1) << ", exitbranch[" << exitbranch << "], time[" << ct.count() << "]" << endl;
