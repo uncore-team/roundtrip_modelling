@@ -19,7 +19,7 @@
 #include "LogLogisticEstimator.h"
 #include "alglib/optimization.h"
 
-static constexpr size_t OMP_THRESHOLD = 1000;
+static constexpr size_t OMP_THRESH = 1000;
 
 using namespace std;
 using namespace alglib;
@@ -29,9 +29,9 @@ using namespace alglib;
  * Used in c_estimate() and c_fvec() functions
  */
 struct c_optim_data {
-    double a;      // Location parameter (fixed during optimization)
-    double b;      // Scale parameter (fixed during optimization)
-    double mean;   // Target mean value from sample data
+    const double& a;      // Location parameter (fixed during optimization)
+    const double& b;      // Scale parameter (fixed during optimization)
+    const double& mean;   // Target mean value from sample data
 };
 
 /**
@@ -39,9 +39,9 @@ struct c_optim_data {
  * Used in abc_estimate(), abc_fvec() and abc_jac() functions
  */
 struct abc_optim_data {
-    vector<double> samples;  // Input data samples
-    unsigned len;           // Number of samples
-    double min;            // Minimum value in samples (used for parameter bounds)
+    const vector<double>& samples;  // Input data samples
+    const size_t& len;              // Number of samples
+    const double& min;              // Minimum value in samples (used for parameter bounds)
 };
 
 /**
@@ -66,9 +66,9 @@ struct abc_optim_data {
 void c_fvec(const real_1d_array& x, real_1d_array& fi, void *ptr) {
     // Get optimization parameters from the data structure
     c_optim_data* p = (c_optim_data*)ptr;
-    const double a = p->a;      // Location parameter (fixed)
-    const double b = p->b;      // Scale parameter (fixed)
-    const double mean = p->mean;// Target mean value
+    const double& a = p->a;        // Location parameter (fixed)
+    const double& b = p->b;        // Scale parameter (fixed)
+    const double& mean = p->mean;  // Target mean value
 
     // Calculate terms for the gamma functions
     const double x1 = 1.0 + x[0];  // For gamma(1+x)
@@ -114,8 +114,8 @@ void abc_fvec(const real_1d_array& x, real_1d_array& fi, void* ptr) {
     // Get optimization parameters
     abc_optim_data* p = (abc_optim_data*)ptr;
     const vector<double>& samples = p->samples;
-    const double min = p->min;
-    const unsigned len = p->len;
+    const size_t& len = p->len;
+    const double& min = p->min;
 
     // Get and validate parameters
     double a = MIN( MAX(eps, x[0]), min - eps);
@@ -134,7 +134,7 @@ void abc_fvec(const real_1d_array& x, real_1d_array& fi, void* ptr) {
 
     // Main computation loop
     #ifdef _OPENMP
-        #pragma omp parallel for reduction(+:sum1,sum2,sum3) if(len > 1000)
+        #pragma omp parallel for reduction(+:sum1,sum2,sum3) if(len > OMP_THRESH)
     #endif
     for (unsigned i = 0; i < len; ++i) {
         const double xma = samples[i] - a;	
@@ -199,8 +199,8 @@ void abc_jac(const real_1d_array& x, real_1d_array& fi, real_2d_array& jac, void
     // Get optimization parameters
     abc_optim_data* p = (abc_optim_data*)ptr;
     const vector<double>& samples = p->samples;
-    const double min = p->min;
-    const unsigned len = p->len;
+    const size_t& len = p->len;
+    const double& min = p->min;
 
     // Validate and initialize parameters
     double a = MIN(MAX(eps, x[0]), min - eps);
@@ -224,7 +224,7 @@ void abc_jac(const real_1d_array& x, real_1d_array& fi, real_2d_array& jac, void
 
     // Main computation loop with OpenMP parallelization for large datasets
     #ifdef _OPENMP
-        #pragma omp parallel for reduction(+:sum1,sum2,sum3,f1a,f1b,f1c,f2a,f2b,f2c,f3a,f3b,f3c) if(len > 1000)
+        #pragma omp parallel for reduction(+:sum1,sum2,sum3,f1a,f1b,f1c,f2a,f2b,f2c,f3a,f3b,f3c) if(len > OMP_THRESH)
     #endif
     for (unsigned i = 0; i < len; ++i) {
         // Compute intermediate values
@@ -387,7 +387,6 @@ int LogLogisticEstimator::abc_estimate(const vector<double>& samples, double& a,
 
     const unsigned len = samples.size();
     const double min = _min(samples);
-
     abc_optim_data data = {samples, len, min};
 
     // Initial guess of {a, b, c}
@@ -560,7 +559,7 @@ tuple<bool, GoF> LogLogisticEstimator::gof(const ModelParams& params, const vect
     const double lenf = static_cast<double>(len);
     double accum = 0.0;
     #ifdef _OPENMP
-        #pragma omp parallel for reduction(+:accum) if(len > 1000)
+        #pragma omp parallel for reduction(+:accum) if(len > OMP_THRESH)
     #endif    
     for (size_t i = 0; i < len; ++i) {
         accum += (2*(i + 1) - 1) * log(data[i]) + (2*lenf + 1 - 2*(i + 1))*log(1 - data[i]);
@@ -644,7 +643,7 @@ vector<double> LogLogisticEstimator::cdf(const ModelParams& params, const vector
     vector<double> cdf(len);
     
     #ifdef _OPENMP
-        #pragma omp parallel for if(len > 1000)
+        #pragma omp parallel for if(len > OMP_THRESH)
     #endif
     for (size_t i = 0; i < len; ++i) {
         if (samples[i] <= offset) {
@@ -719,7 +718,7 @@ vector<double> LogLogisticEstimator::pdf(const ModelParams& params, const vector
     vector<double> pdf(len);
 
     #ifdef _OPENMP
-        #pragma omp parallel for if(len > 1000)
+        #pragma omp parallel for if(len > OMP_THRESH)
     #endif
     for (size_t i = 0; i < len; ++i) {
         if (samples[i] <= offset) {
@@ -786,7 +785,7 @@ double LogLogisticEstimator::rnd(const ModelParams& params) {
  * - p ~ U(0,1)
  * 
  * Implementation details:
- * - Uses OpenMP for parallel generation when length > 1000
+ * - Uses OpenMP for parallel generation when length > OMP_THRESH
  * - Reuses uniform distribution from base class
  * - Pre-computes common terms for efficiency
  */
@@ -802,7 +801,7 @@ vector<double> LogLogisticEstimator::rnd(const ModelParams& params, const unsign
     vector<double> rnd(length);
 
     #ifdef _OPENMP
-        #pragma omp parallel for if(length > 1000)
+        #pragma omp parallel for if(length > OMP_THRESH)
     #endif
     for (unsigned i = 0; i < length; ++i) {
         const double p = m_unif_dist(m_rnd_gen);  // Generate random number from uniform distribution
