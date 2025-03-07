@@ -19,6 +19,8 @@
 #include "LogLogisticEstimator.h"
 #include "alglib/optimization.h"
 
+static constexpr size_t OMP_THRESHOLD = 1000;
+
 using namespace std;
 using namespace alglib;
 
