@@ -16,6 +16,8 @@
 #endif
 #include "ExponentialEstimator.h"
 
+static constexpr size_t OMP_THRESH = 1000;
+
 using namespace std;
 
 /**
@@ -133,7 +135,7 @@ tuple<bool, GoF> ExponentialEstimator::gof(const ModelParams& params, const vect
     const double lenf = static_cast<double>(len);
     double accum = 0.0;
     #ifdef _OPENMP
-        #pragma omp parallel for reduction(+:accum) if(len > 1000)
+        #pragma omp parallel for reduction(+:accum) if(len > OMP_THRESH)
     #endif    
     for (size_t i = 0; i < len; ++i) {
         accum += (2.0*(i + 1) - 1.0)*log(data[i]) + (2.0*lenf + 1.0 - 2.0*(i + 1))*log(1.0 - data[i]);
@@ -198,7 +200,7 @@ vector<double> ExponentialEstimator::cdf(const ModelParams& params, const vector
     vector<double> cdf(len);
     
     #ifdef _OPENMP
-        #pragma omp parallel for if(len > 1000)
+        #pragma omp parallel for if(len > OMP_THRESH)
     #endif
     for (size_t i = 0; i < len; ++i) {
         const double diff = samples[i] - alpha;
@@ -266,7 +268,7 @@ vector<double> ExponentialEstimator::pdf(const ModelParams& params, const vector
     vector<double> pdf(len);
 
     #ifdef _OPENMP
-        #pragma omp parallel for if(len > 1000)
+        #pragma omp parallel for if(len > OMP_THRESH)
     #endif
     for (size_t i = 0; i < len; ++i) {
         const double diff = samples[i] - alpha;
@@ -335,16 +337,16 @@ vector<double> ExponentialEstimator::rnd(const ModelParams& params, const unsign
         throw invalid_argument("Invalid beta for exponential distribution");
     }
 
-    vector<double> samples(length);
+    vector<double> rnd(length);
 
     #ifdef _OPENMP
-        #pragma omp parallel for if(length > 1000)
+        #pragma omp parallel for if(length > OMP_THRESH)
     #endif
     for (unsigned i = 0; i < length; ++i) {
         const double p = m_unif_dist(m_rnd_gen);
-        samples[i] = -log(1.0 - p) / beta + alpha;
+        rnd[i] = -log(1.0 - p) / beta + alpha;
     }
-    return samples;
+    return rnd;
 }
 
 /**
@@ -362,6 +364,7 @@ vector<double> ExponentialEstimator::rnd(const ModelParams& params, const unsign
  * - Direct implementation of analytical formula
  */
 double ExponentialEstimator::expectation(const ModelParams& params) {
+
     return params.alpha + 1.0/params.beta;
 }
 
@@ -380,6 +383,7 @@ double ExponentialEstimator::expectation(const ModelParams& params) {
  * - Pre-computes beta^2 for efficiency
  */
 double ExponentialEstimator::variance(const ModelParams& params) {
+
     const double beta = params.beta;
     return 1.0/(beta*beta);
 }
@@ -399,5 +403,6 @@ double ExponentialEstimator::variance(const ModelParams& params) {
  * - Equal to location parameter by definition
  */
 double ExponentialEstimator::mode(const ModelParams& params) {
+
     return params.alpha;
 }

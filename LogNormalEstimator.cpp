@@ -17,7 +17,7 @@
 #include "LogNormalEstimator.h"
 #include "alglib/optimization.h"
 
-static constexpr size_t OMP_THRESHOLD = 1000;
+static constexpr size_t OMP_THRESH = 1000;
 
 using namespace std;
 using namespace alglib;
@@ -77,7 +77,7 @@ double LogNormalEstimator::gamma_fvec(const double gamma, const void* ptr) {
     double n = 0;        // Current count
 
     #ifdef _OPENMP
-        #pragma omp parallel for reduction(+:mu,M2,n) if(len > OMP_THRESHOLD)
+        #pragma omp parallel for reduction(+:mu,M2,n) if(len > OMP_THRESH)
     #endif
     for (const double& sample : samples) {
         const double value = log(sample - gamma);
@@ -138,14 +138,14 @@ Model LogNormalEstimator::fit(const vector<double>& samples) {
     double n = 0;
 
     #ifdef _OPENMP
-        #pragma omp parallel for reduction(+:mu,M2,n) if(len > OMP_THRESHOLD)
+        #pragma omp parallel for reduction(+:mu,M2,n) if(len > OMP_THRESH)
     #endif
     for (const double& sample : samples) {
         const double value = log(sample - gamma);
         n++;
         const double delta = value - mu;
-        mu += delta / static_cast<double>(n);
-        M2 += delta * (value - mu);
+        mu += delta/n;
+        M2 += delta*(value - mu);
     }
 
     ModelParams params;
@@ -221,7 +221,7 @@ tuple<bool, GoF> LogNormalEstimator::gof(const ModelParams& params, const vector
     const double lenf = static_cast<double>(len);
     double accum = 0.0;
     #ifdef _OPENMP
-        #pragma omp parallel for reduction(+:accum) if(len > OMP_THRESHOLD)
+        #pragma omp parallel for reduction(+:accum) if(len > OMP_THRESH)
     #endif     
     for (size_t i = 0; i < len; ++i) {
         accum += (2*(i + 1) - 1) * log(data[i]) + (2*lenf + 1 - 2*(i + 1))*log(1 - data[i]);
@@ -312,7 +312,7 @@ vector<double> LogNormalEstimator::cdf(const ModelParams& params, const vector<d
     // Calculate the CDF of the lognormal distribution
     vector<double> cdf(len);
     #ifdef _OPENMP
-        #pragma omp parallel for if(len > OMP_THRESHOLD)
+        #pragma omp parallel for if(len > OMP_THRESH)
     #endif    
     for(size_t i = 0; i < len; ++i) {
         if(samples[i] <= gamma) {
@@ -399,7 +399,7 @@ vector<double> LogNormalEstimator::pdf(const ModelParams& params, const vector<d
     vector<double> pdf(len);
 
     #ifdef _OPENMP
-        #pragma omp parallel for if(len > OMP_THRESHOLD)
+        #pragma omp parallel for if(len > OMP_THRESH)
     #endif
     for(size_t i = 0; i < len; ++i) {
         if(samples[i] <= gamma) {
@@ -481,7 +481,7 @@ vector<double> LogNormalEstimator::rnd(const ModelParams& params, const unsigned
    vector<double> rnd(length);
 
    #ifdef _OPENMP
-       #pragma omp parallel for if(length > OMP_THRESHOLD)
+       #pragma omp parallel for if(length > OMP_THRESH)
    #endif
    for (unsigned i = 0; i < length; ++i) {
         // Box-Muller transform to get standard normal
