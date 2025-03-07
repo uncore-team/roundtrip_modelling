@@ -35,14 +35,6 @@ struct gamma_optim_data {
 };
 
 /**
- * Constructor for LogNormalEstimator class.
- * Initializes the base Estimator class with a minimum required sample size of 10.
- * This minimum size ensures reliable parameter estimation for the log-logistic distribution.
- */
-LogNormalEstimator::LogNormalEstimator() : Estimator(10) {
-}
-
-/**
  * Evaluates objective function for gamma parameter optimization.
  * Implements Welford's online algorithm for stable mean and standard deviation calculation.
  * Assumes r=1 for the Modified Maximum Likelihood Estimation (MMLE-I).
@@ -57,17 +49,10 @@ LogNormalEstimator::LogNormalEstimator() : Estimator(10) {
  * - Uses Welford's algorithm for numerical stability
  * - Parallelizes computation for large datasets (>1000 samples)
  */
-double LogNormalEstimator::gamma_fvec(const double gamma, const void* ptr) {
-
-    // Get optimization parameters from the data structure
-    gamma_optim_data* p = (gamma_optim_data*)ptr;
-    const vector<double>& samples = p->samples;
-    const size_t& len = p->len;
-    const double& min = p->min;
-    const double& kr = p->kr;
+double evaluate_at_gamma(const vector<double>& samples, const size_t& len, const double& min, const double& kr, double x) {
 
     // Validate input
-    if (gamma >= min) {
+    if (x >= min) {
         return NaN;
     }
 
@@ -76,11 +61,20 @@ double LogNormalEstimator::gamma_fvec(const double gamma, const void* ptr) {
     double M2 = 0.0;     // Second moment (used for standard deviation)
     double n = 0;        // Current count
 
+    // function ga = MMLEIfun(orderedsample,gamma,r,kr,n)
+    // % Modified function of Cohen, used here
+    
+    //     lsg = log(orderedsample-gamma);
+    //     sg = sum(lsg);
+    //     ga = log(orderedsample(r)-gamma) - sg/n - kr*sqrt( sum(lsg.*lsg)/n-(sg/n).^2 );
+    //     fprintf('%f\n',ga);
+    // end
+
     #ifdef _OPENMP
         #pragma omp parallel for reduction(+:mu,M2,n) if(len > OMP_THRESHOLD)
     #endif
     for (const double& sample : samples) {
-        const double value = log(sample - gamma);
+        const double value = log(sample - x);
         n++;
         const double delta = value - mu;  // Distance to current mean
         mu += delta/n;                    // Update mean incrementally
@@ -89,8 +83,137 @@ double LogNormalEstimator::gamma_fvec(const double gamma, const void* ptr) {
 
     const double sigma = sqrt(M2/n); // Calculate standard deviation
 
-    return log(min - gamma) - mu - kr*sigma;
+    return log(min - x) - mu - kr*sigma;
 };
+
+/**
+ * Callback function for ALGLIB optimization of gamma parameter.
+ * Evaluates the objective function for given parameter values.
+ * 
+ * @param x Array containing single parameter value (gamma)
+ * @param fi Output array for function value
+ * @param ptr Pointer to optimization data structure
+ * 
+ * Implementation details:
+ * - Used by Levenberg-Marquardt algorithm
+ * - Accesses samples and parameters through data structure
+ * - Evaluates MMLE-I objective function
+ */
+//void gamma_fvec(const real_1d_array& x, real_1d_array& fi, void *ptr) {
+void gamma_fvec(const real_1d_array& x, double& fi, void *ptr) {
+
+    // Get optimization parameters from the data structure
+    gamma_optim_data* p = (gamma_optim_data*)ptr;
+    const vector<double>& samples = p->samples;
+    const size_t& len = p->len;
+    const double& min = p->min;
+    const double& kr = p->kr;
+
+    fi = evaluate_at_gamma(samples, len, min, kr, x[0]);
+}
+
+/**
+ * Constructor for LogNormalEstimator class.
+ * Initializes the base Estimator class with a minimum required sample size of 10.
+ * This minimum size ensures reliable parameter estimation for the log-logistic distribution.
+ */
+LogNormalEstimator::LogNormalEstimator() : Estimator(10) {
+}
+
+/**
+ * Estimates the offset parameter (gamma) for 3-parameter log-normal distribution.
+ * Uses Modified Maximum Likelihood Estimation (MMLE-I) with r=1.
+ * 
+ * @param samples Input vector of observations (assumed sorted)
+ * @param gamma Output parameter estimate
+ * @return Status code:
+ *         >0: successful completion
+ *         -100: optimization failed (no sign change or invalid solution)
+ * 
+ * Implementation details:
+ * - Uses bounded optimization on [0, min-eps]
+ * - Verifies existence of solution via sign change
+ * - Uses Levenberg-Marquardt with scaling for stability
+ * - Maximum iterations set to 1000
+ * - Applies parameter bounds and scaling
+ */
+int LogNormalEstimator::gamma_estimate(const vector<double>& samples, double& gamma) {
+
+    const size_t len = samples.size();
+    const double kr = sqrt(2.0)*_erfinv(2.0/(len + 1.0) - 1.0);
+    const double min = _min(samples);
+
+    const double eps = 1e-9;
+
+    // Search limits
+    const double a = 0;
+    const double b = min - eps;
+
+    // Check sign change
+    const double fa = evaluate_at_gamma(samples, len, min, kr, a);
+    const double fb = evaluate_at_gamma(samples, len, min, kr, b);
+    if (isnan(fa) || isnan(fb) || (signbit(fa) == signbit(fb))) {
+        return -100;  // Optimization failed
+    }
+
+    // Setup ALGLIB optimizer
+    real_1d_array x;
+    double x_[] = {gamma};
+    x.attach_to_ptr(1, x_); // Initial guess of gamma
+
+    minbcstate state;
+    double diffstep = 1e-6;
+    minbccreatef(1, x, diffstep, state);  // Optimization state
+
+    real_1d_array bndl, bndu;
+    double bndl_[] = {a};
+    bndl.attach_to_ptr(1, bndl_);
+    double bndu_[] = {b};
+    bndu.attach_to_ptr(1, bndu_);
+    minbcsetbc(state, bndl, bndu);  // Set lower/upper bounds
+
+    double epsg = 1e-3;  // Gradient tolerance
+    double epsf = 1e-3;  // Function change tolerance
+    double epsx = 1e-3;  // Parameter change tolerance
+    int maxits = 100;    // Number of iterations (0 = unlimited)    
+    minbcsetcond(state, epsg, epsf, epsx, maxits);  // Set tolerances and the max number of iterations
+
+    gamma_optim_data data = {samples, len, min, kr};
+    minbcoptimize(state, gamma_fvec, nullptr, &data); // Optimization
+
+    minbcreport rep;
+    minbcresults(state, x, rep); // get results
+
+    // // Setup ALGLIB optimizer
+    // double diffstep = 1e-9;
+    // ae_int_t maxits = 1000;
+    // minlmstate state;
+    // minlmcreatev(1, x, diffstep, state);
+    // minlmsetbc(state, bndl, bndu);
+    // minlmsetcond(state, eps, maxits);
+
+    // real_1d_array s;
+    // double scales[] = {1e-6};
+    // s.attach_to_ptr(1, scales);
+    // minlmsetscale(state, s);
+
+    // // Optimize
+    // minlmoptimize(state, gamma_fvec, nullptr, &data);
+
+    // // Get results
+    // minlmreport rep;
+    // minlmresults(state, x, rep);
+
+    // Validate solution
+    gamma = x[0];
+    if ((min - gamma) < eps) {
+        gamma = b; // min - eps
+    }
+    else if (gamma >= min) {
+        return -100;  // Optimization failed
+    }
+    return rep.terminationtype;
+}
 
 /**
  * Fits a three-parameter log-normal distribution to sample data.
@@ -113,20 +236,12 @@ Model LogNormalEstimator::fit(const vector<double>& samples) {
 
     const size_t len = samples.size();
     const double min = _min(samples);
-    const double kr = sqrt(2.0)*_erfinv(2.0/(len + 1.0) - 1.0); // we assume r=1
 
     // initial guess for gamma
-    double gamma = 0.5*min;
+    double gamma = min - eps;
 
-    // Setup search process
-    int termcode; // Optimization exit code
-    const double tolx = eps; // 
-    const double a = 0;
-    const double b = min - 1e-9;
-
-    gamma_optim_data data = {samples, len, min, kr};
-    tie(gamma, termcode) = fzero(gamma_fvec, a, b, tolx, &data);
-
+    // estimate gamma parameter
+    int termcode = gamma_estimate(samples, gamma);
     if(termcode < 0) {
         cerr << "Error: Optimization did not converge. Code: " << termcode << endl;
         return Model(); // return an empty model: {false, ModelType::None, {NAN, NAN, NAN}, {Inf, NAN}}
@@ -604,8 +719,13 @@ double LogNormalEstimator::mode(const ModelParams& params) {
  * 
  * @throws invalid_argument if a >= b (invalid interval)
  */
-tuple<double, int> LogNormalEstimator::fzero(const function<double(const double, const void*)>& fun, double a, double b, double tol, void* ptr) {
-
+std::pair<double, int> LogNormalEstimator::fzero(
+    const std::function<double(double, void*)>& fun, 
+    double a, 
+    double b, 
+    double tol, 
+    void* ptr) 
+{
     // Exit flags for different scenarios
     enum ExitFlag {
         FoundZero = 1,
@@ -618,7 +738,7 @@ tuple<double, int> LogNormalEstimator::fzero(const function<double(const double,
 
     // Validate interval bounds
     if (a >= b) {
-        throw invalid_argument("Left endpoint 'a' must be less than right endpoint 'b'");
+        throw std::invalid_argument("Left endpoint 'a' must be less than right endpoint 'b'");
     }
 
     // Evaluate function at interval endpoints
@@ -643,7 +763,7 @@ tuple<double, int> LogNormalEstimator::fzero(const function<double(const double,
     // Main iteration loop
     while (fb != 0.0 && a != b) {
         // Update interval to ensure b is best point
-        if (signbit(fb) == signbit(fc)) {
+        if (std::signbit(fb) == std::signbit(fc)) {
             c = a;
             fc = fa;
             d = b - a;
@@ -651,20 +771,20 @@ tuple<double, int> LogNormalEstimator::fzero(const function<double(const double,
         }
 
         // Ensure b has smallest absolute value
-        if (abs(fc) < abs(fb)) {
+        if (std::abs(fc) < std::abs(fb)) {
             a = b; b = c; c = a;
             fa = fb; fb = fc; fc = fa;
         }
 
         // Check convergence
         const double m = 0.5 * (c - b);
-        const double toler = 2.0 * tol * max(abs(b), 1.0);
-        if (abs(m) <= toler || fb == 0.0) {
+        const double toler = 2.0 * tol * std::max(std::abs(b), 1.0);
+        if (std::abs(m) <= toler || fb == 0.0) {
             break;
         }
 
         // Choose between bisection and interpolation
-        if (abs(e) < toler || abs(fa) <= abs(fb)) {
+        if (std::abs(e) < toler || std::abs(fa) <= std::abs(fb)) {
             // Use bisection
             d = e = m;
         } else {
@@ -689,8 +809,8 @@ tuple<double, int> LogNormalEstimator::fzero(const function<double(const double,
             else p = -p;
 
             // Accept interpolation if in bounds
-            if (2.0 * p < 3.0 * m * q - abs(toler * q) && 
-                p < abs(0.5 * e * q)) {
+            if (2.0 * p < 3.0 * m * q - std::abs(toler * q) && 
+                p < std::abs(0.5 * e * q)) {
                 e = d;
                 d = p / q;
             } else {
@@ -703,18 +823,18 @@ tuple<double, int> LogNormalEstimator::fzero(const function<double(const double,
         fa = fb;
         
         // Calculate new point with bounds checking
-        if (abs(d) > toler) {
+        if (std::abs(d) > toler) {
             b += d;
         } else {
-            b += copysign(toler, m);
+            b += std::copysign(toler, m);
         }
 
         // Evaluate function at new point
         fb = fun(b, ptr);
 
         // Check for invalid results
-        if (!isfinite(fb)) {
-            return {b, isnan(fb) ? 
+        if (!std::isfinite(fb)) {
+            return {b, std::isnan(fb) ? 
                 ExitFlag::NaNOrInfEncountered : 
                 ExitFlag::ComplexValueEncountered};
         }

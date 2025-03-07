@@ -1,6 +1,7 @@
 #ifndef LOGNORMAL_ESTIMATOR_H
 #define LOGNORMAL_ESTIMATOR_H
 
+#include <functional>
 #include "Estimator.h"
 
 using namespace std;
@@ -140,8 +141,10 @@ private:
      * @param samples Input data vector
      * @param gamma Input/Output location parameter
      * @return Optimization termination type (>0 success, ≤0 failure)
-     */  
-    int gamma_estimate(const vector<double>& samples, double& gamma);
+     */
+    static double gamma_fvec(const double gamma, const void* ptr);
+
+    tuple<double, int> fzero(const function<double(const double, const void*)>& fun, double a, double b, double tol, void* ptr);
 };
 
 #endif // LOGNORMAL_ESTIMATOR_H

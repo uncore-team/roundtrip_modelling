@@ -3,6 +3,19 @@ cmake_minimum_required(VERSION 3.10)
 # Project name and version
 project(OnlineRANSAC VERSION 1.0 LANGUAGES CXX)
 
+# Enable multicore compilation
+
+if(MSVC)
+    add_compile_options(/MP)
+elseif(CMAKE_MAKE_PROGRAM MATCHES ".*mingw.*")
+    include(ProcessorCount)
+    ProcessorCount(N)
+    if(NOT N EQUAL 0)
+        set(CMAKE_BUILD_PARALLEL_LEVEL ${N})
+        message(STATUS "Using ${N} cores for parallel build")
+    endif()
+endif()
+
 # Specify the C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
