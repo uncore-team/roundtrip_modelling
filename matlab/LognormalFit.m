@@ -14,7 +14,7 @@ function [ok, offs, mu, sigma] = LognormalFit(x)
     if (minx - offs < minsepoffset)
         offs = minx - minsepoffset; 
     end
-    if offs > min(x)
+    if offs > minx
         error('invalid lognormal fit');
     end
     xs = log(x-offs);
@@ -40,7 +40,8 @@ function [ok,offset] = estimateOffset(regimen,trace)
 	r = 1;
     orderedsample = sort(regimen);
     n = length(orderedsample);
-    kr = norminv(r/(n+1)); %sqrt(2)*erfinv(2*r/(n+1)-1);
+    %kr = norminv(r/(n+1));
+    kr = sqrt(2)*erfinv(2*r/(n+1)-1);
     
     if trace
         gxs = linspace(orderedsample(r)-10,orderedsample(r)-1e-9,1000000);
