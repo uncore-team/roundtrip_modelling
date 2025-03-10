@@ -42,6 +42,20 @@ public:
     virtual ~Estimator();
 
     /**
+     * @brief Factory method to create specific distribution estimators
+     * 
+     * Creates and returns a shared pointer to a concrete estimator based on
+     * the requested distribution type. Available types:
+     * - LL3: Three-parameter log-logistic
+     * - LN3: Three-parameter log-normal
+     * - EXP: Two-parameter exponential
+     * @param type Distribution type to create
+     * @return Shared pointer to concrete estimator instance
+     * @throws invalid_argument if type is invalid or unsupported
+     */    
+    static Estimator::Ptr create(ModelType type);
+
+    /**
      * @brief Fits a statistical distribution to sample data
      * 
      * @param samples Vector of observations to fit

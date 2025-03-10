@@ -151,7 +151,7 @@ Model LogNormalEstimator::fit(const vector<double>& samples) {
     ModelParams params;
     params.gamma = gamma;
     params.mu = mu;
-    params.sigma = sqrt(M2/n);
+    params.sigma = sqrt(M2/(n - 1));
 
     auto [reject, gof_] = gof(params, samples);
     if (!reject) {
@@ -210,9 +210,11 @@ tuple<bool, GoF> LogNormalEstimator::gof(const ModelParams& params, const vector
 
     // Transform to uniform using lognormal CDF
     vector<double> data(len);
+    const double sqrt2 = sqrt(2.0);
     transform(samples.begin(), samples.end(), data.begin(), 
-        [gamma, mu, sigma](double sample) { 
-            return 0.5 * (1 + erf((log(sample - gamma) - mu) / (sigma * sqrt(2.0))));
+        [gamma, mu, sigma, sqrt2](double sample) {
+            const double w = (log(sample - gamma) - mu)/sigma;
+            return 0.5*erfc(-w/sqrt2);
         }
     );
     sort(data.begin(), data.end());
@@ -230,21 +232,6 @@ tuple<bool, GoF> LogNormalEstimator::gof(const ModelParams& params, const vector
 
     // Apply small sample correction
     A2 *= (1.0 + 0.75/lenf + 2.25/(lenf*lenf));
-
-    // double pvalue;
-    // if (A2 <= 0.2) {
-    //     pvalue = 1 - exp(-13.436 + 101.14 * A2 - 223.73 * A2 * A2);
-    // } else if (A2 <= 0.34) {
-    //     pvalue = 1 - exp(-8.318 + 42.796 * A2 - 59.938 * A2 * A2);
-    // } else if (A2 <= 0.6) {
-    //     pvalue = exp(0.9177 - 4.279 * A2 - 1.38 * A2 * A2);
-    // } else if (A2 <= 153.467) {
-    //     pvalue = exp(1.2937 * A2 - 5.709 * A2 + 0.0186 * A2 * A2);
-    // } else {
-    //     pvalue = 0;
-    // }
-    // double stat = A2;
-    // bool reject = (pvalue <= 0.05); // equivalently, the statistic is greater than the threshold
 
     return {A2 > thresh, {A2, thresh}};
 }

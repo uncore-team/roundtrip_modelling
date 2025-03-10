@@ -1,4 +1,8 @@
 #include "Estimator.h"
+#include "LogLogisticEstimator.h"
+#include "LogNormalEstimator.h"
+#include "ExponentialEstimator.h"
+
 
 using namespace std;
 
@@ -10,16 +14,60 @@ using namespace std;
  */
 
 /**
- * @brief Constructor initializing minimum sample size requirement
+ * Constructor initializing minimum sample size requirement
+ * and random number generation facilities.
+ * 
  * @param min_len Minimum number of samples needed for reliable estimation
+ * 
+ * Implementation details:
+ * - Sets minimum sample size requirement
+ * - Initializes random number generator
+ * - Sets up uniform distribution [0,1]
  */
 Estimator::Estimator(unsigned min_len) : m_min_len(min_len), m_rnd_gen(m_rnd_dev()), m_unif_dist(0.0, 1.0) {
 }
 
 /**
- * @brief Virtual destructor implementation
+ * Virtual destructor implementation.
+ * Ensures proper cleanup of derived classes.
+ * 
+ * Implementation details:
+ * - Allows polymorphic deletion
+ * - Required for abstract base class
  */
 Estimator::~Estimator() {
+}
+
+/**
+ * Factory method that creates specific distribution estimator instances.
+ * 
+ * @param type Distribution type to create, supported types:
+ *        - LL3: Three-parameter log-logistic distribution
+ *        - LN3: Three-parameter log-normal distribution
+ *        - EXP: Two-parameter exponential distribution
+ * @return Shared pointer to concrete estimator instance
+ * 
+ * Implementation details:
+ * - Creates appropriate derived class based on type
+ * - Uses make_shared for efficient memory management
+ * - Provides polymorphic access through base class pointer
+ * 
+ * @throws invalid_argument if type is not supported
+ */
+Estimator::Ptr Estimator::create(ModelType type) {
+
+    if (type == ModelType::LL3) {
+        return make_shared<LogLogisticEstimator>();
+    }
+    else if (type == ModelType::LN3) {
+        return make_shared<LogNormalEstimator>();
+    }
+    else if (type == ModelType::EXP) {
+        return make_shared<ExponentialEstimator>();
+    }
+    else {
+        throw invalid_argument("Invalid model type");
+    }
 }
 
 /**
