@@ -40,8 +40,8 @@ function [ok,offset] = estimateOffset(regimen,trace)
 	r = 1;
     orderedsample = sort(regimen);
     n = length(orderedsample);
-    %kr = norminv(r/(n+1));
-    kr = sqrt(2)*erfinv(2*r/(n+1)-1);
+    kr = norminv(r/(n+1));
+    %kr = sqrt(2)*erfinv(2*r/(n+1)-1);
     
     if trace
         gxs = linspace(orderedsample(r)-10,orderedsample(r)-1e-9,1000000);
@@ -120,5 +120,5 @@ function ga = MMLEIfun(orderedsample,gamma,r,kr,n)
     lsg = log(orderedsample-gamma);
     sg = sum(lsg);
     ga = log(orderedsample(r)-gamma) - sg/n - kr*sqrt( sum(lsg.*lsg)/n-(sg/n).^2 );
-    fprintf('%f\n',ga);
+    % fprintf('%f\n',ga);
 end

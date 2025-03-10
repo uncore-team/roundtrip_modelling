@@ -1,0 +1,18 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${env:PYTHON_HOME}/include",
+                "${env:PYTHON_HOME}/Lib/site-packages/numpy/_core/include"
+            ],
+            "defines": [],
+            "compilerPath": "C:/dev/mingw64/bin/gcc.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "windows-gcc-x64",
+        }
+    ],
+    "version": 4
+}

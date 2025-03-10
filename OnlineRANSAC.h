@@ -1,10 +1,7 @@
 #ifndef ONLINE_RANSAC_H
 #define ONLINE_RANSAC_H
 
-#include <cmath>
-#include <limits>
 #include <map>
-#include <memory>
 #include <vector>
 
 #include "Model.h"
@@ -60,6 +57,15 @@ public:
      */
     Model get_model();
 
+    /**
+     * @brief Prints the current fitted model parameters to standard output
+     * 
+     * Displays distribution-specific parameters and goodness of fit statistics
+     * in a human-readable format. Each derived class implements its own
+     * formatting specific to its distribution type.
+     */    
+    void print_model();
+
 private:
     State m_state;                    ///< Current algorithm state
     unsigned m_min_len;               ///< Minimum required samples
@@ -68,7 +74,7 @@ private:
     unsigned m_sample_sliding;        ///< Window strategy
     unsigned m_data_preserving;       ///< Data retention strategy
     vector<ModelType> m_model_types;  ///< Supported distributions
-    map<ModelType, std::shared_ptr<Estimator>> m_model_estimators;  ///< Distribution estimators
+    map<ModelType, Estimator::Ptr> m_model_estimators;  ///< Distribution estimators
 
     /**
      * @brief Attempts to fit models to sample data

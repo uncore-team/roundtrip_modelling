@@ -27,12 +27,20 @@ add_definitions(
     -D_GLIBCXX_USE_CRT_STDIO_OUTPUT=1
 )
 
+# Find python (to use matplotlib)
+find_package(Python3 COMPONENTS Interpreter Development NumPy REQUIRED)
+message(STATUS "Python3_FOUND: ${Python3_FOUND}")
+message(STATUS "Python3_VERSION: ${Python3_VERSION}")
+message(STATUS "Python3_INCLUDE_DIRS: ${Python3_INCLUDE_DIRS}")
+message(STATUS "Python3_LIBRARIES: ${Python3_LIBRARIES}")
+message(STATUS "Python3_NumPy_FOUND: ${Python3_NumPy_FOUND}")
+
 # Find OpenMP package
 find_package(OpenMP REQUIRED)
 if(OpenMP_CXX_FOUND)
     # Agregar flags de OpenMP a las opciones globales de compilación
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-    
+
     # Para MinGW específicamente
     if(MINGW)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
@@ -97,6 +105,7 @@ target_include_directories(${PROJECT_NAME}
     PRIVATE 
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/alglib
+        ${Python3_INCLUDE_DIRS}
 )
 
 # Windows-specific configuration with MinGW
@@ -114,11 +123,27 @@ else()
 endif()
 
 # Link libraries
-target_link_libraries(${PROJECT_NAME} 
+target_link_libraries(${PROJECT_NAME}
     PRIVATE 
         ALG
         OpenMP::OpenMP_CXX
+        Python3::Python
+        Python3::Module
 )
+if(Python3_NumPy_FOUND)
+    target_link_libraries(${PROJECT_NAME}
+        PRIVATE 
+            Python3::NumPy
+    )
+else()
+    target_compile_definitions(${PROJECT_NAME}
+        PRIVATE
+        WITHOUT_NUMPY
+    )
+endif()
 
 # Configure OpenMP for ALGLIB
-target_link_libraries(ALG PRIVATE OpenMP::OpenMP_CXX)
+target_link_libraries(ALG
+    PRIVATE
+        OpenMP::OpenMP_CXX
+)
