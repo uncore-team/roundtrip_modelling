@@ -12,14 +12,12 @@
  */
 #ifdef _OPENMP
     #include <omp.h>
-    #pragma message("Compiling LogLogisticEstimator with OpenMP support.")
+    //#pragma message("Compiling LogLogisticEstimator with OpenMP support.")
 #else
     #pragma message("Compiling LogLogisticEstimator without OpenMP support.")
 #endif
 #include "LogLogisticEstimator.h"
 #include "alglib/optimization.h"
-
-static constexpr size_t OMP_THRESH = 1000;
 
 using namespace std;
 using namespace alglib;
@@ -499,12 +497,10 @@ Model LogLogisticEstimator::fit(const vector<double>& samples) {
     params.c = c;
 
     auto [reject, gof_] = gof(params, samples);
-    if (!reject) {
-        return {true, ModelType::LL3, params, gof_};
-    }
-    else { 
-        return Model(); // return an empty model: {false, ModelType::None, {NAN, NAN, NAN}, {Inf, NAN}}
-    }
+
+    // Return model only if fit is acceptable
+    //    empty model = {false, ModelType::None, {NAN, NAN, NAN}, {Inf, NAN}}    
+    return reject ? Model() : Model{true, ModelType::LL3, params, gof_};
 }
 
 /**
