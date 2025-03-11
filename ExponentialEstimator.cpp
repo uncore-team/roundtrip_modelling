@@ -10,13 +10,11 @@
  */
 #ifdef _OPENMP
     #include <omp.h>
-    #pragma message("Compiling ExponentialEstimator with OpenMP support.")
+    //#pragma message("Compiling ExponentialEstimator with OpenMP support.")
 #else
     #pragma message("Compiling ExponentialEstimator without OpenMP support.")
 #endif
 #include "ExponentialEstimator.h"
-
-static constexpr size_t OMP_THRESH = 1000;
 
 using namespace std;
 

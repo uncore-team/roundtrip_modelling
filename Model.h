@@ -5,13 +5,15 @@
 
 using namespace std;
 
-const double eps = numeric_limits<double>::epsilon();
-const double Inf = numeric_limits<double>::max();
-const double NaN = numeric_limits<double>::quiet_NaN();
-
 #define MIN(a,b) ((a) < (b) ? a : b) 
 #define MAX(a,b) ((a) > (b) ? a : b)
 
+static const double eps = numeric_limits<double>::epsilon();
+static const double Inf = numeric_limits<double>::max();
+static const double NaN = numeric_limits<double>::quiet_NaN();
+static const size_t OMP_THRESH = 1000;
+
+// Model types
 enum ModelType {
     None = 0,
     LL3 = 1,
@@ -19,12 +21,12 @@ enum ModelType {
     EXP = 3
 };
 
-// Structure to hold model coefficients and type
+// Structure to hold model coefficients
 struct ModelParams {
     // LogLogistic (3-params) model
-    double a = NaN;
-    double b = NaN;
-    double c = NaN;
+    double a = NaN;      // location parameter (minimum possible value)
+    double b = NaN;      // scale parameter (alpha)
+    double c = NaN;      // shape parameter (sigma)
     //  LogNormal (3-params) model
     double gamma = NaN;  // Gamma
     double mu = NaN;     // Mean
@@ -33,8 +35,10 @@ struct ModelParams {
     double alpha = NaN;  // location of the distribution 
     double beta = NaN;   // 1/beta mean of the distribution
 };
+//typedef vector<double> ModelParams; TODO (a vector instead of the previous struct)
 
-struct GoF { // Goodness of fit
+// Goodness of fit
+struct GoF {
     double stat = Inf;  // Statistic
     double thresh = NaN;  // Threshold
 };

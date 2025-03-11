@@ -10,14 +10,12 @@
  */
 #ifdef _OPENMP
     #include <omp.h>
-    #pragma message("Compiling LogNormalEstimator with OpenMP support.")
+    //#pragma message("Compiling LogNormalEstimator with OpenMP support.")
 #else
     #pragma message("Compiling LogNormalEstimator without OpenMP support.")
 #endif
 #include "LogNormalEstimator.h"
 #include "alglib/optimization.h"
-
-static constexpr size_t OMP_THRESH = 1000;
 
 using namespace std;
 using namespace alglib;
@@ -154,12 +152,10 @@ Model LogNormalEstimator::fit(const vector<double>& samples) {
     params.sigma = sqrt(M2/(n - 1));
 
     auto [reject, gof_] = gof(params, samples);
-    if (!reject) {
-        return {true, ModelType::LN3, params, gof_};
-    }
-    else { 
-        return Model(); // return an empty model: {false, ModelType::None, {NAN, NAN, NAN}, {Inf, NAN}}
-    }
+
+    // Return model only if fit is acceptable
+    // empty model = {false, ModelType::None, {NAN, NAN, NAN}, {Inf, NAN}}
+    return reject ? Model() : Model{true, ModelType::LN3, params, gof_};
 }
 
 /**
