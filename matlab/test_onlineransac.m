@@ -20,7 +20,7 @@ for modelpreserving = 0:2
         for datapreserving = 0:1
 
             onlineransacparms = struct('s',20,'N',NaN,...
-                           'mtypes',{{'LN3'}},... % {{'LL3','LN3','EXP2'}},... % EXP2 tends to identify more, shorter, regimes, but worse ones; thus it should be used as secondary EXP2 tends to identify more, shorter, regimes, but worse ones; thus it should be used as secondary
+                           'mtypes',{{'LL3'}},... % {{'LL3','LN3','EXP2'}},... % EXP2 tends to identify more, shorter, regimes, but worse ones; thus it should be used as secondary EXP2 tends to identify more, shorter, regimes, but worse ones; thus it should be used as secondary
                            'modelpreserving',modelpreserving,...
                            'samplesliding',samplesliding,...
                            'datapreserving',datapreserving);
@@ -32,7 +32,7 @@ for modelpreserving = 0:2
                 t1 = tic;
                 [exitbranch,state] = AlgOnlineransac(onlineransacparms,state,data(f));
                 ct = toc(t1);
-                fprintf("#%d, exitbranch[%d], time[%f]\n", f, exitbranch, ct);
+                %fprintf("#%d, exitbranch[%d], time[%f]\n", f, exitbranch, ct);
             end
 
             fprintf("model_preserving[%d] " + ...
@@ -40,6 +40,11 @@ for modelpreserving = 0:2
                     "data_preserving[%d]", modelpreserving, samplesliding, datapreserving);
             if ~isempty(state.model) && state.model.defined
                 switch state.model.type
+                    case 'LL3'
+                        fprintf("\nModel: %s\n" + ...
+                                "\ta: %f\n" + ...
+                                "\tb: %f\n" + ...
+                                "\tc: %f\n", state.model.type, state.model.coeffs.a, state.model.coeffs.b, state.model.coeffs.c);
                     case 'EXP2'
                         fprintf("\nModel: %s\n" + ...
                                 "\talpha: %f\n" + ...

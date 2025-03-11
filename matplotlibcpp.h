@@ -55,7 +55,7 @@ class PythonEnvironment { // varevalo@uma.es
     
             PyConfig config;
             PyConfig_InitPythonConfig(&config);
-    
+
             // Set Python paths
             const wstring python_home = get_python_home();
     //        const wchar_t* pythonHome = L"C:/Program Files/Python313";
@@ -71,6 +71,7 @@ class PythonEnvironment { // varevalo@uma.es
             // Set Python path to include site-packages
             wstring site_packages = python_home + L"/Lib/site-packages";
     //        const wchar_t* pythonPath = L"C:/Program Files/Python313/Lib/site-packages";
+
             status = PyConfig_SetString(&config, &config.pythonpath_env, site_packages.c_str());
             if (PyStatus_Exception(status)) {
                 std::cerr << "Failed to set Python path" << std::endl;
@@ -103,7 +104,7 @@ class PythonEnvironment { // varevalo@uma.es
                 Py_Finalize();
             }
         }
-    
+
     private:
         static const wstring get_python_home()
         {
@@ -113,7 +114,7 @@ class PythonEnvironment { // varevalo@uma.es
             }
             return to_wstring(python_home);
         }
-    
+
         static const wstring to_wstring(const char* str)
         {
             wstring wstr;
