@@ -4,16 +4,11 @@ cmake_minimum_required(VERSION 3.10)
 project(OnlineRANSAC VERSION 1.0 LANGUAGES CXX)
 
 # Enable multicore compilation
-
-if(MSVC)
-    add_compile_options(/MP)
-elseif(CMAKE_MAKE_PROGRAM MATCHES ".*mingw.*")
-    include(ProcessorCount)
-    ProcessorCount(N)
-    if(NOT N EQUAL 0)
-        set(CMAKE_BUILD_PARALLEL_LEVEL ${N})
-        message(STATUS "Using ${N} cores for parallel build")
-    endif()
+include(ProcessorCount)
+ProcessorCount(N)
+if(NOT N EQUAL 0)
+    set(CMAKE_BUILD_PARALLEL_LEVEL ${N})
+    message(STATUS "Using ${N} cores for parallel build")
 endif()
 
 # Specify the C++ standard
@@ -21,73 +16,86 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Add compile definitions for proper I/O handling (needed for MinGW)
-add_definitions(
-    -D_GLIBCXX_USE_CRT_STDIO_INPUT=1
-    -D_GLIBCXX_USE_CRT_STDIO_OUTPUT=1
-)
+# Force GCC compiler
+set(CMAKE_C_COMPILER gcc)
+set(CMAKE_CXX_COMPILER g++)
 
-# Find python (to use matplotlib)
-find_package(Python3 COMPONENTS Interpreter Development NumPy REQUIRED)
-message(STATUS "Python3_FOUND: ${Python3_FOUND}")
-message(STATUS "Python3_VERSION: ${Python3_VERSION}")
-message(STATUS "Python3_INCLUDE_DIRS: ${Python3_INCLUDE_DIRS}")
-message(STATUS "Python3_LIBRARIES: ${Python3_LIBRARIES}")
-message(STATUS "Python3_NumPy_FOUND: ${Python3_NumPy_FOUND}")
-
-# Find OpenMP package
-find_package(OpenMP REQUIRED)
-if(OpenMP_CXX_FOUND)
-    # Agregar flags de OpenMP a las opciones globales de compilación
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-
-    # Para MinGW específicamente
-    if(MINGW)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fopenmp")
-    endif()
-endif()
-
-# Set a default build type if none was specified
+# Set default build type
 set(default_build_type "Release")
 if(EXISTS "${CMAKE_SOURCE_DIR}/.git")
-  set(default_build_type "Debug")
+    set(default_build_type "Debug")
 endif()
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-  message(STATUS "Setting build type to '${default_build_type}' as none was specified.")
-  set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE
-      STRING "Choose the type of build." FORCE)
-  # Set the possible values of build type for cmake-gui
-  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
-    "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+    set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE STRING "Choose the type of build." FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
-# ALGLIB library sources
-set(ALGLIB_SOURCES
-    alglib/alglibinternal.cpp
-    alglib/alglibmisc.cpp
-    alglib/ap.cpp
-    alglib/dataanalysis.cpp
-    alglib/diffequations.cpp
-    alglib/fasttransforms.cpp
-    alglib/integration.cpp
-    alglib/interpolation.cpp
-    alglib/kernels_avx2.cpp
-    alglib/kernels_fma.cpp
-    alglib/kernels_sse2.cpp
-    alglib/linalg.cpp
-    alglib/optimization.cpp
-    alglib/solvers.cpp
-    alglib/specialfunctions.cpp
-    alglib/statistics.cpp
-)
+####### Find required packages
 
-# Create ALGLIB library
-add_library(ALG STATIC ${ALGLIB_SOURCES})
-target_include_directories(ALG PUBLIC ${CMAKE_SOURCE_DIR}/alglib)
+# Find Python3
+find_package(Python3 COMPONENTS Interpreter Development NumPy REQUIRED)
+if(Python3_FOUND)
+    message(STATUS "Python3 found at ${Python3_EXECUTABLE}")
+    include_directories(${Python3_INCLUDE_DIR})
+else()
+    message(FATAL_ERROR "Python3 not found. Please set CMAKE_PREFIX_PATH correctly.")
+endif()
 
-# Main project sources
+# Find OpenMP
+find_package(OpenMP REQUIRED)
+if(OpenMP_FOUND)
+    message(STATUS "OpenMP found at ${OpenMP_gomp_LIBRARY}")
+    include_directories(${OpenMP_INCLUDE_DIR})
+else()
+    message(FATAL_ERROR "OpenMP not found. Please set CMAKE_PREFIX_PATH correctly.")
+endif()
+
+# GTest library
+file(GLOB GTest_SOURCES "${CMAKE_SOURCE_DIR}/gtest/src/*.cc")
+add_library(GTest STATIC ${GTest_SOURCES})
+target_include_directories(GTest PUBLIC "${CMAKE_SOURCE_DIR}/gtest" "${CMAKE_SOURCE_DIR}/gtest/include")
+
+# ALGLIB library
+file(GLOB ALGLIB_SOURCES "${CMAKE_SOURCE_DIR}/alglib/*.cpp")
+add_library(ALGLIB STATIC ${ALGLIB_SOURCES})
+target_include_directories(ALGLIB PUBLIC ${CMAKE_SOURCE_DIR}/alglib)
+
+# CPU-specific optimization flags
+if(MSVC OR MSYS OR MINGW)
+
+    add_definitions(-DAE_OS=AE_WINDOWS)
+    execute_process(COMMAND wmic CPU get Name OUTPUT_VARIABLE CPU_NAME)
+    # message(STATUS "CPU detected: ${CPU_NAME}")
+
+    if (${CPU_NAME} MATCHES "Intel")
+        message(STATUS "Intel CPU detected, adding Intel-specific definitions")
+
+		add_definitions(-DAE_CPU=AE_INTEL)
+        if(MSVC) # Enable AVX2 for MSVC
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX2")
+        else() # Enable AVX2 for MinGW/MSYS
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2 -mfma")
+        endif()
+    endif()
+
+elseif(UNIX)
+
+    add_definitions(-DAE_OS=AE_POSIX)
+    execute_process(COMMAND uname -m OUTPUT_VARIABLE ARCHITECTURE)
+    message(STATUS "Detected architecture: ${ARCHITECTURE}")
+
+    if (${ARCHITECTURE} MATCHES "x86_64")
+        message(STATUS "Intel CPU detected, adding Intel-specific definitions")
+        add_definitions(-DAE_CPU=AE_INTEL)
+
+        # Add AVX2 support flags
+        set(COMPILER_OPTIONS "${COMPILER_OPTIONS} -mavx2 -mfma")
+    endif()
+
+endif()
+
+# Main executable
 set(SOURCES
     main.cpp
     Estimator.cpp
@@ -97,53 +105,80 @@ set(SOURCES
     ExponentialEstimator.cpp
 )
 
-# Create the executable
 add_executable(${PROJECT_NAME} ${SOURCES})
 
-# Configure include directories
-target_include_directories(${PROJECT_NAME} 
-    PRIVATE 
-        ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_CURRENT_SOURCE_DIR}/alglib
-        ${Python3_INCLUDE_DIRS}
+target_include_directories(${PROJECT_NAME} PRIVATE 
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/gtest/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/alglib
+    ${Python3_INCLUDE_DIRS}
+    ${OpenMP_INCLUDE_DIRS}
 )
 
-# Windows-specific configuration with MinGW
-if(MINGW)
-    target_link_options(${PROJECT_NAME} PRIVATE -static)
-    target_link_libraries(${PROJECT_NAME} PRIVATE stdc++)
-    target_compile_options(${PROJECT_NAME} PRIVATE -static-libstdc++ -static-libgcc)
-endif()
-
-# Configure warnings
-if(MSVC)
-    target_compile_options(${PROJECT_NAME} PRIVATE /W4)
-else()
-    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-# Link libraries
-target_link_libraries(${PROJECT_NAME}
-    PRIVATE 
-        ALG
-        OpenMP::OpenMP_CXX
-        Python3::Python
-        Python3::Module
+target_compile_options(${PROJECT_NAME} PRIVATE 
+    -Wall 
+    -Wextra 
+    -Wpedantic
+    -static-libstdc++ 
+    -static-libgcc
 )
+
+target_link_options(${PROJECT_NAME} PRIVATE -static)
+target_link_libraries(${PROJECT_NAME} PRIVATE 
+    GTest
+    ALGLIB
+    OpenMP::OpenMP_CXX
+    Python3::Python
+    Python3::Module
+    stdc++
+)
+
 if(Python3_NumPy_FOUND)
-    target_link_libraries(${PROJECT_NAME}
-        PRIVATE 
-            Python3::NumPy
-    )
+    target_link_libraries(${PROJECT_NAME} PRIVATE Python3::NumPy)
 else()
-    target_compile_definitions(${PROJECT_NAME}
-        PRIVATE
-        WITHOUT_NUMPY
-    )
+    target_compile_definitions(${PROJECT_NAME} PRIVATE WITHOUT_NUMPY)
 endif()
 
-# Configure OpenMP for ALGLIB
-target_link_libraries(ALG
-    PRIVATE
-        OpenMP::OpenMP_CXX
+# Testing configuration
+enable_testing()
+
+set(TEST_SOURCES
+    tests/ExponentialTests.cpp
+    # tests/LogLogisticTests.cpp
+    # tests/LogNormalTests.cpp
 )
+
+add_executable(${PROJECT_NAME}_tests 
+    ${TEST_SOURCES}
+    Estimator.cpp
+    OnlineRANSAC.cpp
+    LogLogisticEstimator.cpp
+    LogNormalEstimator.cpp
+    ExponentialEstimator.cpp
+)
+
+target_compile_options(${PROJECT_NAME}_tests PRIVATE 
+    -Wall 
+    -Wextra 
+    -Wpedantic
+    -static-libstdc++ 
+    -static-libgcc
+)
+
+target_link_options(${PROJECT_NAME}_tests PRIVATE -static)
+target_link_libraries(${PROJECT_NAME}_tests PRIVATE 
+    GTest
+    ALGLIB
+    OpenMP::OpenMP_CXX
+    stdc++
+)
+
+target_include_directories(${PROJECT_NAME}_tests PRIVATE 
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/gtest/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/alglib
+    ${OpenMP_INCLUDE_DIRS}
+)
+
+include(GoogleTest)
+gtest_discover_tests(${PROJECT_NAME}_tests)

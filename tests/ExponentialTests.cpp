@@ -1,8 +1,9 @@
-#include <gtest/gtest.h>
-#include "ExponentialEstimator.h"
-#include <random>
 #include <algorithm>
 #include <numeric>
+#include <random>
+
+#include <gtest/gtest.h>
+#include "ExponentialEstimator.h"
 
 using namespace std;
 
