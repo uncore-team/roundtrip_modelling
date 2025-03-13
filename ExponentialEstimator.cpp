@@ -234,7 +234,7 @@ double ExponentialEstimator::pdf(const ModelParams& params, const double& sample
     }
 
     const double diff = sample - alpha;
-    return (diff <= 0) ? 0.0 : beta * exp(-beta * diff);
+    return (diff < 0) ? 0.0 : beta * exp(-beta * diff);
 }
 
 /**
@@ -270,7 +270,7 @@ vector<double> ExponentialEstimator::pdf(const ModelParams& params, const vector
     #endif
     for (size_t i = 0; i < len; ++i) {
         const double diff = samples[i] - alpha;
-        pdf[i] = (diff <= 0) ? 0.0 : beta * exp(-beta * diff);
+        pdf[i] = (diff < 0) ? 0.0 : beta * exp(-beta * diff);
     }
     return pdf;
 }
@@ -306,7 +306,7 @@ double ExponentialEstimator::rnd(const ModelParams& params) {
     }
 
     const double p = m_unif_dist(m_rnd_gen);
-    return -log(1.0 - p) / beta + alpha;
+    return alpha - log(1.0 - p)/beta;
 }    
 
 /**
@@ -342,7 +342,7 @@ vector<double> ExponentialEstimator::rnd(const ModelParams& params, const unsign
     #endif
     for (unsigned i = 0; i < length; ++i) {
         const double p = m_unif_dist(m_rnd_gen);
-        rnd[i] = -log(1.0 - p) / beta + alpha;
+        rnd[i] = alpha - log(1.0 - p)/beta;
     }
     return rnd;
 }
@@ -363,7 +363,10 @@ vector<double> ExponentialEstimator::rnd(const ModelParams& params, const unsign
  */
 double ExponentialEstimator::expectation(const ModelParams& params) {
 
-    return params.alpha + 1.0/params.beta;
+    const double alpha = params.alpha;
+    const double beta = params.beta;
+
+    return alpha + 1.0/beta;
 }
 
 /**
