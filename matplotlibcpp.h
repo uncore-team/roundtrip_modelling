@@ -52,50 +52,67 @@ namespace matplotlibcpp {
 class PythonEnvironment { // varevalo@uma.es
     public:
         static bool initialize() {
-    
-            PyConfig config;
-            PyConfig_InitPythonConfig(&config);
 
-            // Set Python paths
-            const wstring python_home = get_python_home();
-    //        const wchar_t* pythonHome = L"C:/Program Files/Python313";
-    
-            PyStatus status;
-            status = PyConfig_SetString(&config, &config.home, python_home.c_str());
-            if (PyStatus_Exception(status)) {
-                std::cerr << "Failed to set Python home" << std::endl;
-                PyConfig_Clear(&config);
-                return false;
-            }
-    
-            // Set Python path to include site-packages
-            wstring site_packages = python_home + L"/Lib/site-packages";
-    //        const wchar_t* pythonPath = L"C:/Program Files/Python313/Lib/site-packages";
+//             PyConfig config;
+//             PyConfig_InitPythonConfig(&config);
 
-            status = PyConfig_SetString(&config, &config.pythonpath_env, site_packages.c_str());
-            if (PyStatus_Exception(status)) {
-                std::cerr << "Failed to set Python path" << std::endl;
-                PyConfig_Clear(&config);
+//             // Set Python paths
+//             //const wstring python_home = get_python_home();
+//     //        const wstring python_home = L"C:/Program Files/Python313";
+//             const wstring python_home = L"/usr/lib/python3.8";
+    
+//             PyStatus status;
+//             status = PyConfig_SetString(&config, &config.home, python_home.c_str());
+//             if (PyStatus_Exception(status)) {
+//                 std::cerr << "Failed to set Python home" << std::endl;
+//                 PyConfig_Clear(&config);
+//                 return false;
+//             }
+    
+//             // Set Python path to include site-packages
+// //            wstring site_packages = python_home + L"/Lib/site-packages";
+//     //        wstring site_packages = L"C:/Program Files/Python313/Lib/site-packages";
+//             wstring site_packages = L"/usr/local/lib/python3/dist-packages/";
+
+//             status = PyConfig_SetString(&config, &config.pythonpath_env, site_packages.c_str());
+//             if (PyStatus_Exception(status)) {
+//                 std::cerr << "Failed to set Python path" << std::endl;
+//                 PyConfig_Clear(&config);
+//                 return false;
+//             }
+    
+//             // Initialize Python
+//             status = Py_InitializeFromConfig(&config);
+//             if (PyStatus_Exception(status)) {
+//                 if (status.err_msg) {
+//                     std::cerr << "Python initialization failed: " << status.err_msg << std::endl;
+//                 }
+//                 PyConfig_Clear(&config);
+//                 return false;
+//             }
+    
+//             PyConfig_Clear(&config);
+            // Py_SetPythonHome(L"/usr/lib/python3.8");
+                
+            // // Asegurarse de que la ruta incluya todos los directorios necesarios
+            // const wchar_t *paths = L"/usr/lib/python3.8:"
+            //                     L"/usr/lib/python3.8/lib-dynload:"
+            //                     L"/usr/lib/python3.8/lib/python3.8:"
+            //                     L"/usr/lib/python3/dist-packages";
+            // Py_SetPath(paths);
+
+            // Inicializar Python
+            Py_Initialize();
+            if (!Py_IsInitialized()) {
+                std::cerr << "Python initialization failed" << std::endl;
                 return false;
             }
-    
-            // Initialize Python
-            status = Py_InitializeFromConfig(&config);
-            if (PyStatus_Exception(status)) {
-                if (status.err_msg) {
-                    std::cerr << "Python initialization failed: " << status.err_msg << std::endl;
-                }
-                PyConfig_Clear(&config);
-                return false;
-            }
-    
-            PyConfig_Clear(&config);
-    
+
             // Import numpy and matplotlib
-            PyRun_SimpleString("import numpy as np");
-            PyRun_SimpleString("import matplotlib.pyplot as plt");
-            PyRun_SimpleString("plt.switch_backend('TkAgg')");  // Use interactive backend (Agg for non-interactive)
-    
+            // PyRun_SimpleString("import numpy as np");
+            // PyRun_SimpleString("import matplotlib.pyplot as plt");
+            // PyRun_SimpleString("plt.switch_backend('TkAgg')");  // Use interactive backend (Agg for non-interactive)
+
             return true;
         }
     
@@ -108,9 +125,13 @@ class PythonEnvironment { // varevalo@uma.es
     private:
         static const wstring get_python_home()
         {
-            const char* python_home = std::getenv("PYTHON_HOME");
+            char* python_home = std::getenv("PYTHON_HOME"); // First try
             if (!python_home) {
-                throw invalid_argument("PYTHON_HOME environment variable not set");
+
+                python_home = std::getenv("PYTHONPATH"); // Another try
+                if (!python_home) {
+                    throw invalid_argument("PYTHON_HOME environment variable not set");
+                }
             }
             return to_wstring(python_home);
         }
