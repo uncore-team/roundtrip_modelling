@@ -36,7 +36,7 @@ endif()
 # Find Python3
 find_package(Python3 COMPONENTS Interpreter Development NumPy REQUIRED)
 if(Python3_FOUND)
-    message(STATUS "Python3 found at ${Python3_EXECUTABLE}")
+    # message(STATUS "Python3 found at ${Python3_EXECUTABLE}")
     include_directories(${Python3_INCLUDE_DIR})
 else()
     message(FATAL_ERROR "Python3 not found. Please set CMAKE_PREFIX_PATH correctly.")
@@ -45,7 +45,7 @@ endif()
 # Find OpenMP
 find_package(OpenMP REQUIRED)
 if(OpenMP_FOUND)
-    message(STATUS "OpenMP found at ${OpenMP_gomp_LIBRARY}")
+    # message(STATUS "OpenMP found at ${OpenMP_gomp_LIBRARY}")
     include_directories(${OpenMP_INCLUDE_DIR})
 else()
     message(FATAL_ERROR "OpenMP not found. Please set CMAKE_PREFIX_PATH correctly.")
@@ -90,7 +90,7 @@ elseif(UNIX)
         add_definitions(-DAE_CPU=AE_INTEL)
 
         # Add AVX2 support flags
-        set(COMPILER_OPTIONS "${COMPILER_OPTIONS} -mavx2 -mfma")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2 -mfma")
     endif()
 
 endif()
@@ -123,7 +123,7 @@ target_compile_options(${PROJECT_NAME} PRIVATE
     -static-libgcc
 )
 
-target_link_options(${PROJECT_NAME} PRIVATE -static)
+target_link_options(${PROJECT_NAME} PRIVATE ) # -static
 target_link_libraries(${PROJECT_NAME} PRIVATE 
     GTest
     ALGLIB
@@ -165,7 +165,7 @@ target_compile_options(${PROJECT_NAME}_tests PRIVATE
     -static-libgcc
 )
 
-target_link_options(${PROJECT_NAME}_tests PRIVATE -static)
+target_link_options(${PROJECT_NAME}_tests PRIVATE ) # -static
 target_link_libraries(${PROJECT_NAME}_tests PRIVATE 
     GTest
     ALGLIB

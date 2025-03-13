@@ -88,7 +88,7 @@ double LogNormalEstimator::gamma_fvec(const double gamma, const void* ptr) {
     const double sigma = sqrt(M2/n); // Calculate standard deviation
 
     return log(min - gamma) - mu - kr*sigma;
-};
+}
 
 /**
  * Fits a three-parameter log-normal distribution to sample data.
@@ -500,7 +500,7 @@ double LogNormalEstimator::expectation(const ModelParams& params) {
         throw invalid_argument("Invalid sigma parameter for log-normal distribution (must be > 0)");
     }
     return gamma + exp(mu + (sigma*sigma)/2);
-};
+}
 
 /**
  * Calculates the variance of the log-normal distribution.
@@ -557,7 +557,7 @@ double LogNormalEstimator::mode(const ModelParams& params) {
     }
 
     return gamma + exp(mu - sigma*sigma);
-};
+}
 
 /**
  * Finds a zero of a continuous function using a combination of bisection and interpolation.
