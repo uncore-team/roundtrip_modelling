@@ -115,29 +115,31 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${OpenMP_INCLUDE_DIRS}
 )
 
-target_compile_options(${PROJECT_NAME} PRIVATE 
-    -Wall 
-    -Wextra 
-    -Wpedantic
-    -static-libstdc++ 
-    -static-libgcc
-)
+target_compile_options(${PROJECT_NAME} PRIVATE -libstdc++)
+if(MSVC)
+    target_compile_options(${PROJECT_NAME} PRIVATE /W4)
+else()
+    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
+endif()
 
-target_link_options(${PROJECT_NAME} PRIVATE ) # -static
+# Add compile definitions for proper I/O handling (needed for MinGW)
+if(MINGW)
+    add_definitions(
+        -D_GLIBCXX_USE_CRT_STDIO_INPUT=1
+        -D_GLIBCXX_USE_CRT_STDIO_OUTPUT=1
+    )
+endif()
+
+#target_link_options(${PROJECT_NAME} PRIVATE ) # -static
 target_link_libraries(${PROJECT_NAME} PRIVATE 
     GTest
     ALGLIB
     OpenMP::OpenMP_CXX
     Python3::Python
     Python3::Module
+    Python3::NumPy
     stdc++
 )
-
-if(Python3_NumPy_FOUND)
-    target_link_libraries(${PROJECT_NAME} PRIVATE Python3::NumPy)
-else()
-    target_compile_definitions(${PROJECT_NAME} PRIVATE WITHOUT_NUMPY)
-endif()
 
 # Testing configuration
 enable_testing()
@@ -157,15 +159,14 @@ add_executable(${PROJECT_NAME}_tests
     ExponentialEstimator.cpp
 )
 
-target_compile_options(${PROJECT_NAME}_tests PRIVATE 
-    -Wall 
-    -Wextra 
-    -Wpedantic
-    -static-libstdc++ 
-    -static-libgcc
-)
+target_compile_options(${PROJECT_NAME}_tests PRIVATE -libstdc++)
+if(MSVC)
+    target_compile_options(${PROJECT_NAME} PRIVATE /W4)
+else()
+    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
+endif()
 
-target_link_options(${PROJECT_NAME}_tests PRIVATE ) # -static
+#target_link_options(${PROJECT_NAME}_tests PRIVATE ) # -static
 target_link_libraries(${PROJECT_NAME}_tests PRIVATE 
     GTest
     ALGLIB
