@@ -69,14 +69,11 @@ double LogNormalEstimator::gamma_fvec(const double gamma, const void* ptr) {
         return NaN;
     }
 
-    // Welford's online algorithm for mean and standard deviation
-    double mu = 0.0;
+    // Calculate mean and standard deviation using Welford's online algorithm
+    // IMPORTANT: This algorithm can not be parallelized
+    double mu = 0.0;     // Mean
     double M2 = 0.0;     // Second moment (used for standard deviation)
-    double n = 0;        // Current count
-
-    #ifdef _OPENMP
-        #pragma omp parallel for reduction(+:mu,M2,n) if(len > OMP_THRESH)
-    #endif
+    double n = 0;
     for (const double& sample : samples) {
         const double value = log(sample - gamma);
         n++;
@@ -116,6 +113,11 @@ Model LogNormalEstimator::fit(const vector<double>& samples) {
     // initial guess for gamma
     double gamma = 0.5*min;
 
+    // Validate minimum sample size requirement
+    if (len < m_min_len) {
+        throw invalid_argument("Cannot fit anything with less than 10 values");
+    }
+
     // Setup search process
     int termcode; // Optimization exit code
     const double tolx = eps; // 
@@ -131,13 +133,10 @@ Model LogNormalEstimator::fit(const vector<double>& samples) {
     }        
 
     // Calculate mean and standard deviation using Welford's online algorithm
-    double mu = 0.0;
-    double M2 = 0.0;
+    // IMPORTANT: This algorithm can not be parallelized
+    double mu = 0.0;     // Mean
+    double M2 = 0.0;     // Second moment (used for standard deviation)
     double n = 0;
-
-    #ifdef _OPENMP
-        #pragma omp parallel for reduction(+:mu,M2,n) if(len > OMP_THRESH)
-    #endif
     for (const double& sample : samples) {
         const double value = log(sample - gamma);
         n++;
@@ -163,9 +162,9 @@ Model LogNormalEstimator::fit(const vector<double>& samples) {
  * Based on D'Agostino & Stephens (1986), p. 123.
  * 
  * @param params Distribution parameters {gamma, mu, sigma} where:
- *        - gamma: offset parameter (minimum possible value)
- *        - mu: location parameter (μ)
- *        - sigma: scale parameter (σ > 0)
+ *        - gamma: Location parameter (minimum possible value)
+ *        - mu: Mean of the associated normal distribution (μ)
+ *        - sigma: Standard deviation of the associated normal distribution (σ > 0)
  * @param samples Vector of observations to test against
  * 
  * @return tuple<bool, GoF> containing:
@@ -186,9 +185,11 @@ Model LogNormalEstimator::fit(const vector<double>& samples) {
  */
 tuple<bool, GoF> LogNormalEstimator::gof(const ModelParams& params, const vector<double>& samples) {
 
+    // Parameters
     const double gamma = params.gamma;
     const double mu = params.mu;
     const double sigma = params.sigma;
+
     const double thresh = 0.752;  // D'Agostino & Stephens (1986), p. 123, Table 4.7
     const size_t len = samples.size();
     const double min = _min(samples);
@@ -237,9 +238,9 @@ tuple<bool, GoF> LogNormalEstimator::gof(const ModelParams& params, const vector
  * from the log-normal distribution with offset.
  * 
  * @param params Distribution parameters {gamma, mu, sigma} where:
- *        - gamma: offset parameter (minimum possible value)
- *        - mu: location parameter (μ)
- *        - sigma: scale parameter (σ > 0)
+ *        - gamma: Location parameter (minimum possible value)
+ *        - mu: Mean of the associated normal distribution (μ)
+ *        - sigma: Standard deviation of the associated normal distribution (σ > 0)
  * @param sample Single input value to evaluate
  * @return CDF value F(x) = Φ((ln(x-gamma) - α)/σ) where Φ is the standard normal CDF
  * 
@@ -250,6 +251,7 @@ tuple<bool, GoF> LogNormalEstimator::gof(const ModelParams& params, const vector
  */
 double LogNormalEstimator::cdf(const ModelParams& params, const double& sample) {
 
+    // Parameters
     const double gamma = params.gamma;
     const double mu = params.mu;
     const double sigma = params.sigma;
@@ -259,21 +261,18 @@ double LogNormalEstimator::cdf(const ModelParams& params, const double& sample) 
     }
 
     // Calculate the CDF of the lognormal distribution
-    if(sample <= gamma) {
-        return 0.0;
-    } else {
-        const double z = (log(sample - gamma) - mu) / (sigma * sqrt(2.0));
-        return 0.5 * (1.0 + erf(z));
-    }
+    const double z = sample - gamma;
+    return (z <= 0) ? 0.0 : 0.5*(1.0 + erf((log(z) - mu)/(sigma*sqrt(2.0))));
 }
 
 /**
  * Calculates the cumulative distribution function (CDF) for multiple values
  * from the log-normal distribution with offset.
  * 
- * @param gamma Location parameter (minimum possible value)
- * @param mu Mean of the associated normal distribution
- * @param sigma Standard deviation of the associated normal distribution (sigma > 0)
+ * @param params Distribution parameters {gamma, mu, sigma} where:
+ *        - gamma: Location parameter (minimum possible value)
+ *        - mu: Mean of the associated normal distribution (μ)
+ *        - sigma: Standard deviation of the associated normal distribution (σ > 0)
  * @param x Vector of values to evaluate
  * @return Vector of CDF values F(x) = Φ((ln(x-gamma) - μ)/σ) 
  *         where Φ is the standard normal CDF
@@ -285,25 +284,24 @@ double LogNormalEstimator::cdf(const ModelParams& params, const double& sample) 
  */
 vector<double> LogNormalEstimator::cdf(const ModelParams& params, const vector<double>& samples) {
 
+    // Parameters
     const double gamma = params.gamma;
     const double mu = params.mu;
     const double sigma = params.sigma;
 
-    const double sqrt2 = sqrt(2.0);
-    unsigned len = samples.size();
+    if (sigma <= 0.0) {
+        throw invalid_argument("Invalid sigma parameter for log-normal distribution (must be > 0)");
+    }
 
     // Calculate the CDF of the lognormal distribution
+    unsigned len = samples.size();
     vector<double> cdf(len);
+
     #ifdef _OPENMP
         #pragma omp parallel for if(len > OMP_THRESH)
     #endif    
     for(size_t i = 0; i < len; ++i) {
-        if(samples[i] <= gamma) {
-            cdf[i] = 0.0;
-        } else {
-            const double z = (log(samples[i] - gamma) - mu) / (sigma * sqrt2);
-            cdf[i] = 0.5 * (1.0 + erf(z));
-        }
+        cdf[i] = this->cdf(params, samples[i]);
     }
     return cdf;
 }
@@ -313,9 +311,9 @@ vector<double> LogNormalEstimator::cdf(const ModelParams& params, const vector<d
  * from the log-normal distribution with offset.
  * 
  * @param params Distribution parameters {gamma, mu, sigma} where:
- *        - gamma: offset parameter (minimum possible value)
- *        - mu: location parameter (μ)
- *        - sigma: scale parameter (σ > 0)
+ *        - gamma: Location parameter (minimum possible value)
+ *        - mu: Mean of the associated normal distribution (μ)
+ *        - sigma: Standard deviation of the associated normal distribution (σ > 0)
  * @param sample Single input value to evaluate
  * @return CDF value F(x) = Φ((ln(x-gamma) - α)/σ) where Φ is the standard normal CDF
  * 
@@ -326,6 +324,7 @@ vector<double> LogNormalEstimator::cdf(const ModelParams& params, const vector<d
  */
 double LogNormalEstimator::pdf(const ModelParams& params, const double& sample) {
 
+    // Parameters
     const double gamma = params.gamma;
     const double mu = params.mu;
     const double sigma = params.sigma;
@@ -334,17 +333,13 @@ double LogNormalEstimator::pdf(const ModelParams& params, const double& sample) 
         throw invalid_argument("Invalid sigma parameter for log-normal distribution (must be > 0)");
     }
 
-    const double sqrt2pi = sqrt(2.0 * M_PI);
-    const double twoSigmaSq = 2.0 * sigma * sigma;
-
     // Calculate the PDF of the lognormal distribution
-    if(sample <= gamma) {
+    const double z = sample - gamma;
+    if (z <= 0.0) {
         return 0.0;
     } else {
-        const double diff = sample - gamma;
-        const double logDiff = log(diff);
-        const double expTerm = exp(-(logDiff - mu)*(logDiff - mu)/twoSigmaSq);
-        return expTerm / (diff * sigma * sqrt2pi);
+        const double expTerm = exp(-pow((log(z) - mu), 2.0)/(2.0*sigma*sigma));
+        return expTerm/(z*sigma*sqrt(2.0*M_PI));
     }
 }
 
@@ -352,10 +347,11 @@ double LogNormalEstimator::pdf(const ModelParams& params, const double& sample) 
  * Calculates the probability density function (PDF) for multiple values
  * from the log-normal distribution with offset.
  * 
+ * @param params Distribution parameters {gamma, mu, sigma} where:
+ *        - gamma: Location parameter (minimum possible value)
+ *        - mu: Mean of the associated normal distribution (μ)
+ *        - sigma: Standard deviation of the associated normal distribution (σ > 0)
  * @param x Vector of values to evaluate
- * @param gamma Location parameter (minimum possible value)
- * @param mu Mean of the associated normal distribution
- * @param sigma Standard deviation of the associated normal distribution (sigma > 0)
  * @return Vector of PDF values f(x) = 1/((x-gamma)σ√(2π)) * exp(-(ln(x-gamma)-μ)²/(2σ²))
  * 
  * Implementation details:
@@ -374,25 +370,15 @@ vector<double> LogNormalEstimator::pdf(const ModelParams& params, const vector<d
         throw invalid_argument("Invalid sigma parameter for log-normal distribution (must be > 0)");
     }
 
-    const double sqrt2pi = sqrt(2.0 * M_PI);
-    const double twoSigmaSq = 2.0 * sigma * sigma;
-
     // Calculate PDFs with OpenMP parallelization for large datasets
-    unsigned len = samples.size();
+    size_t len = samples.size();
     vector<double> pdf(len);
 
     #ifdef _OPENMP
         #pragma omp parallel for if(len > OMP_THRESH)
     #endif
     for(size_t i = 0; i < len; ++i) {
-        if(samples[i] <= gamma) {
-            pdf[i] = 0.0;
-        } else {
-            const double diff = samples[i] - gamma;
-            const double logDiff = log(diff);
-            const double expTerm = exp(-(logDiff - mu)*(logDiff - mu)/twoSigmaSq);
-            pdf[i] = expTerm / (diff * sigma * sqrt2pi);
-        }
+        pdf[i] = this->pdf(params, samples[i]);
     }
     return pdf;
 }
@@ -402,9 +388,9 @@ vector<double> LogNormalEstimator::pdf(const ModelParams& params, const vector<d
  * the Box-Muller transform method.
  * 
  * @param params Distribution parameters {gamma, mu, sigma} where:
- *        - gamma: offset parameter (minimum possible value)
- *        - mu: location parameter (μ)
- *        - sigma: scale parameter (σ > 0)
+ *        - gamma: Location parameter (minimum possible value)
+ *        - mu: Mean of the associated normal distribution (μ)
+ *        - sigma: Standard deviation of the associated normal distribution (σ > 0)
  * @return Random value X = gamma + exp(α + σZ) where Z ~ N(0,1)
  * 
  * Implementation details:
@@ -423,13 +409,9 @@ double LogNormalEstimator::rnd(const ModelParams& params) {
         throw invalid_argument("Invalid sigma parameter for log-normal distribution (must be > 0)");
     }
 
-   const double sqrt2 = sqrt(2.0);
-
-   // Generate 'length' data from loglogistic distribution
-
     // Box-Muller transform to get standard normal
     const double u = m_unif_dist(m_rnd_gen);
-    const double z = sqrt2 * _erfinv(2.0*u - 1.0);
+    const double z = sqrt(2.0)*_erfinv(2.0*u - 1.0);
 
     return gamma + exp(mu + sigma*z);  // Transform to log-normal with parameters
 }    
@@ -439,12 +421,12 @@ double LogNormalEstimator::rnd(const ModelParams& params) {
  * Uses Box-Muller transform to generate normal variables and then
  * transforms them to log-normal.
  * 
- * @param offs Location parameter (minimum possible value)
- * @param mu Mean of the associated normal distribution
- * @param sigma Standard deviation of associated normal distribution (sigma > 0)
- * @param m Number of rows in output matrix
- * @param n Number of columns in output matrix
- * @return Matrix (m x n) of random values from log-normal(offs, mu, sigma)
+ * @param params Distribution parameters {gamma, mu, sigma} where:
+ *        - gamma: Location parameter (minimum possible value)
+ *        - mu: Mean of the associated normal distribution (μ)
+ *        - sigma: Standard deviation of the associated normal distribution (σ > 0)
+ * @param length Number of samples in output vector
+ * @return Vector of random values from log-normal(gamma, mu, sigma)
  * 
  * Implementation details:
  * - Uses uniform distribution to generate base random numbers
@@ -458,20 +440,14 @@ vector<double> LogNormalEstimator::rnd(const ModelParams& params, const unsigned
    const double mu = params.mu;
    const double sigma = params.sigma;
 
-   const double sqrt2 = sqrt(2.0);
-
    // Generate 'length' data from loglogistic distribution
    vector<double> rnd(length);
 
    #ifdef _OPENMP
        #pragma omp parallel for if(length > OMP_THRESH)
    #endif
-   for (unsigned i = 0; i < length; ++i) {
-        // Box-Muller transform to get standard normal
-        const double u = m_unif_dist(m_rnd_gen);
-        const double z = sqrt2 * _erfinv(2.0 * u - 1.0);
-
-        rnd[i] = gamma + exp(mu + sigma*z); // Transform to log-normal with parameters
+   for (size_t i = 0; i < length; ++i) {
+        rnd[i] = this->rnd(params); // Transform to log-normal with parameters
    }
    return rnd;
 }
@@ -529,7 +505,7 @@ double LogNormalEstimator::variance(const ModelParams& params) {
 
     const double sigma2 = sigma*sigma;
 
-    return (exp(sigma2) - 1) * exp(2*mu + sigma2);
+    return (exp(sigma2) - 1)*exp(2*mu + sigma2);
 }
 
 /**

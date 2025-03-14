@@ -99,15 +99,17 @@ Model ExponentialEstimator::fit(const vector<double>& samples) {
  */
 tuple<bool, GoF> ExponentialEstimator::gof(const ModelParams& params, const vector<double>& samples) {
 
+    // Parameters
     const double alpha = params.alpha;   // Location parameter
     const double beta = params.beta;     // Rate parameter
-    const double mu = 1 / params.beta;   // Convert rate to mean for calculations
+    const double mu = 1/params.beta;   // Convert rate to mean for calculations
+
     const double thresh = 1.321;         // Critical value from D'Agostino table 4.14
     const size_t len = samples.size();
     const double min = _min(samples);
 
     // Validate parameters
-    if (beta <= 0) {
+    if (beta <= 0.0) {
         throw invalid_argument("Invalid beta for exponential distribution.");
     }
     if (len < m_min_len) {
@@ -165,11 +167,16 @@ tuple<bool, GoF> ExponentialEstimator::gof(const ModelParams& params, const vect
  */
 double ExponentialEstimator::cdf(const ModelParams& params, const double& sample) {
 
+    // Parameters
     const double alpha = params.alpha;
     const double beta = params.beta;
-    const double diff = sample - alpha;
-    
-    return (diff <= 0) ? 0.0 : 1.0 - exp(-beta * diff);
+
+    if (beta <= 0.0) {
+        throw invalid_argument("Invalid beta for exponential distr.");
+    }
+
+    const double z = sample - alpha;
+    return (z <= 0.0) ? 0.0 : 1.0 - exp(-beta*z);
 }
 
 /**
@@ -191,18 +198,23 @@ double ExponentialEstimator::cdf(const ModelParams& params, const double& sample
  */
 vector<double> ExponentialEstimator::cdf(const ModelParams& params, const vector<double>& samples) {
 
+    // Parameters
     const double alpha = params.alpha;
     const double beta = params.beta;
 
+    if (beta <= 0) {
+        throw invalid_argument("Invalid beta for exponential distr.");
+    }
+
+    // Calculate the CDF of the exponential distribution
     const size_t len = samples.size();
     vector<double> cdf(len);
-    
+
     #ifdef _OPENMP
         #pragma omp parallel for if(len > OMP_THRESH)
     #endif
     for (size_t i = 0; i < len; ++i) {
-        const double diff = samples[i] - alpha;
-        cdf[i] = (diff <= 0) ? 0.0 : 1.0 - exp(-beta * diff);
+        cdf[i] = this->cdf(params, samples[i]);
     }
     return cdf;
 }
@@ -226,6 +238,7 @@ vector<double> ExponentialEstimator::cdf(const ModelParams& params, const vector
  */
 double ExponentialEstimator::pdf(const ModelParams& params, const double& sample) {
 
+    // Parameters
     const double alpha = params.alpha;
     const double beta = params.beta;
 
@@ -233,8 +246,8 @@ double ExponentialEstimator::pdf(const ModelParams& params, const double& sample
         throw invalid_argument("Invalid beta for exponential distr.");
     }
 
-    const double diff = sample - alpha;
-    return (diff < 0) ? 0.0 : beta * exp(-beta * diff);
+    const double z = sample - alpha;
+    return (z < 0.0) ? 0.0 : beta*exp(-beta*z);
 }
 
 /**
@@ -255,6 +268,7 @@ double ExponentialEstimator::pdf(const ModelParams& params, const double& sample
  */
 vector<double> ExponentialEstimator::pdf(const ModelParams& params, const vector<double>& samples) {
 
+    // Parameters
     const double alpha = params.alpha;
     const double beta = params.beta;
 
@@ -262,6 +276,7 @@ vector<double> ExponentialEstimator::pdf(const ModelParams& params, const vector
         throw invalid_argument("Invalid beta for exponential distr.");
     }
 
+    // Calculate the PDF of the exponential distribution
     const size_t len = samples.size();
     vector<double> pdf(len);
 
@@ -269,8 +284,7 @@ vector<double> ExponentialEstimator::pdf(const ModelParams& params, const vector
         #pragma omp parallel for if(len > OMP_THRESH)
     #endif
     for (size_t i = 0; i < len; ++i) {
-        const double diff = samples[i] - alpha;
-        pdf[i] = (diff < 0) ? 0.0 : beta * exp(-beta * diff);
+        pdf[i] = this->pdf(params, samples[i]);
     }
     return pdf;
 }
@@ -298,15 +312,16 @@ vector<double> ExponentialEstimator::pdf(const ModelParams& params, const vector
  */
 double ExponentialEstimator::rnd(const ModelParams& params) {
 
+    // Parameters
     const double alpha = params.alpha;
     const double beta = params.beta;
 
-    if (beta <= 0) {
+    if (beta <= 0.0) {
         throw invalid_argument("Invalid beta for exponential distribution");
     }
 
-    const double p = m_unif_dist(m_rnd_gen);
-    return alpha - log(1.0 - p)/beta;
+    const double u = m_unif_dist(m_rnd_gen);
+    return alpha - log(1.0 - u)/beta;
 }    
 
 /**
@@ -328,10 +343,11 @@ double ExponentialEstimator::rnd(const ModelParams& params) {
  */
 vector<double> ExponentialEstimator::rnd(const ModelParams& params, const unsigned& length) {
 
+    // Parameters
     const double alpha = params.alpha;
     const double beta = params.beta;
 
-    if (beta <= 0) {
+    if (beta <= 0.0) {
         throw invalid_argument("Invalid beta for exponential distribution");
     }
 
@@ -340,9 +356,8 @@ vector<double> ExponentialEstimator::rnd(const ModelParams& params, const unsign
     #ifdef _OPENMP
         #pragma omp parallel for if(length > OMP_THRESH)
     #endif
-    for (unsigned i = 0; i < length; ++i) {
-        const double p = m_unif_dist(m_rnd_gen);
-        rnd[i] = alpha - log(1.0 - p)/beta;
+    for (size_t i = 0; i < length; ++i) {
+        rnd[i] = this->rnd(params);
     }
     return rnd;
 }
@@ -363,6 +378,7 @@ vector<double> ExponentialEstimator::rnd(const ModelParams& params, const unsign
  */
 double ExponentialEstimator::expectation(const ModelParams& params) {
 
+   // Parameters
     const double alpha = params.alpha;
     const double beta = params.beta;
 
@@ -385,7 +401,9 @@ double ExponentialEstimator::expectation(const ModelParams& params) {
  */
 double ExponentialEstimator::variance(const ModelParams& params) {
 
+    // Parameters
     const double beta = params.beta;
+
     return 1.0/(beta*beta);
 }
 

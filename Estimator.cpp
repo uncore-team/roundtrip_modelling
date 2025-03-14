@@ -248,6 +248,10 @@ double Estimator::_erfinv(const double& x) {
     const double sgn = (x < 0) ? -1.0 : 1.0;
     const double tt1 = 2.0 / (M_PI*0.147) + 0.5*lnx;
     const double tt2 = 1.0 / (0.147) * lnx;
-
     return(sgn * sqrt(-tt1 + sqrt(tt1 * tt1 - tt2)));
+
+    // double a = 0.147;
+    // double y = log(1 - x*x);
+    // double z = 2/(M_PI*a) + y/2;
+    // return sqrt(sqrt(z*z - y/a) - z)*(x < 0 ? -1 : 1);
 }

@@ -10,7 +10,7 @@ using namespace std;
 class ExponentialTest : public ::testing::Test {
 protected:
     ExponentialEstimator estimator;
-    const size_t sample_size = 1000;
+    const size_t sample_size = 5000;
     const double alpha_true = 1.0;  // location parameter
     const double beta_true = 2.0;   // rate parameter
     vector<double> samples;
@@ -34,6 +34,35 @@ TEST_F(ExponentialTest, ValidateParameterEstimation) {
     EXPECT_NEAR(model.params.beta, beta_true, 0.1);
 }
 
+TEST_F(ExponentialTest, ValidateGoodnessOfFit) {
+
+    ModelParams params;
+    params.alpha = alpha_true;
+    params.beta = beta_true;
+
+    // auto model = estimator.fit(samples);
+    // auto [reject, gof] = estimator.gof(model.params, samples);
+    auto [reject, gof] = estimator.gof(params, samples);
+
+    // For properly generated data, we expect not to reject the null hypothesis
+    EXPECT_FALSE(reject);
+    EXPECT_LT(gof.stat, gof.thresh); // Common significance level
+}
+
+/*
+TEST_F(ExponentialTest, ValidateOutlierDetection) {
+    // Generate some outliers
+    vector<double> data = samples;
+    data.push_back(alpha_true + 10.0/beta_true); // Add obvious outlier
+    
+    auto model = estimator.fit(data);
+    auto outliers = estimator.findOutliers(data, model.params);
+    
+    EXPECT_FALSE(outliers.empty());
+    EXPECT_TRUE(outliers.back()); // Last point should be marked as outlier
+}
+*/
+
 TEST_F(ExponentialTest, ThrowsOnInsufficientSamples) {
     vector<double> small_sample = {1.0, 2.0};
     EXPECT_THROW(estimator.fit(small_sample), invalid_argument);
@@ -47,9 +76,14 @@ TEST_F(ExponentialTest, ValidatePDF) {
     // Test at multiple points
     vector<double> test_points = {1.0, 1.5, 2.0, 2.5, 3.0};
     for(double x : test_points) {
-        double expected_pdf = x < alpha_true ? 0.0 : 
-                            beta_true * exp(-beta_true * (x - alpha_true));
-        EXPECT_NEAR(estimator.pdf(params, x), expected_pdf, 1e-10);
+        const double z = x - alpha_true;
+        if (z < 0) {
+            EXPECT_EQ(estimator.pdf(params, x), 0.0);
+        }
+        else {
+            const double expected_pdf = beta_true*exp(-beta_true*z);
+            EXPECT_NEAR(estimator.pdf(params, x), expected_pdf, 1e-10);
+        }
     }
 }
 
@@ -57,13 +91,18 @@ TEST_F(ExponentialTest, ValidateCDF) {
     ModelParams params;
     params.alpha = alpha_true;
     params.beta = beta_true;
-    
+
     // Test at multiple points
     vector<double> test_points = {1.0, 1.5, 2.0, 2.5, 3.0};
     for(double x : test_points) {
-        double expected_cdf = x < alpha_true ? 0.0 : 
-                            1.0 - exp(-beta_true * (x - alpha_true));
-        EXPECT_NEAR(estimator.cdf(params, x), expected_cdf, 1e-10);
+        const double z = x - alpha_true;
+        if (z <= 0) {
+            EXPECT_EQ(estimator.cdf(params, x), 0.0);
+        }
+        else {
+            const double expected_cdf = 1.0 - exp(-beta_true*z);
+            EXPECT_NEAR(estimator.cdf(params, x), expected_cdf, 1e-10);
+        }
     }
 }
 
@@ -121,43 +160,18 @@ TEST_F(ExponentialTest, ValidateStatistics) {
     EXPECT_NEAR(estimator.variance(params), 1.0/(beta_true*beta_true), 1e-10);
 }
 
-TEST_F(ExponentialTest, ValidateGoodnessOfFit) {
-
-    ModelParams params;
-    params.alpha = alpha_true;
-    params.beta = beta_true;
-
-    // auto model = estimator.fit(samples);
-    // auto [reject, gof] = estimator.gof(model.params, samples);
-    auto [reject, gof] = estimator.gof(params, samples);
-    
-    // For properly generated data, we expect not to reject the null hypothesis
-    EXPECT_FALSE(reject);
-    EXPECT_LT(gof.stat, gof.thresh); // Common significance level
-}
-
 TEST_F(ExponentialTest, ValidateBoundaryConditions) {
 
     // Test with edge cases
     ModelParams params;
-    params.alpha = 0.0;
-    params.beta = 1.0;
-    
-    EXPECT_NEAR(estimator.pdf(params, 0.0), 1.0, 1e-10);
-    EXPECT_NEAR(estimator.cdf(params, 0.0), 0.0, 1e-10);
+    // params.alpha = 0.5;
+    // params.beta = 1.0;
+    params.alpha = alpha_true;
+    params.beta = beta_true;
+
+    EXPECT_NEAR(estimator.pdf(params, params.alpha), 1.0, 1e-10);
+    EXPECT_NEAR(estimator.pdf(params, Inf), 0.0, 1e-10);
+
+    EXPECT_NEAR(estimator.cdf(params, params.alpha), 0.0, 1e-10);
     EXPECT_NEAR(estimator.cdf(params, Inf), 1.0, 1e-10);
 }
-
-/*
-TEST_F(ExponentialTest, ValidateOutlierDetection) {
-    // Generate some outliers
-    vector<double> data = samples;
-    data.push_back(alpha_true + 10.0/beta_true); // Add obvious outlier
-    
-    auto model = estimator.fit(data);
-    auto outliers = estimator.findOutliers(data, model.params);
-    
-    EXPECT_FALSE(outliers.empty());
-    EXPECT_TRUE(outliers.back()); // Last point should be marked as outlier
-}
-*/
