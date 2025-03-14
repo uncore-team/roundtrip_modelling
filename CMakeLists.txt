@@ -147,7 +147,7 @@ enable_testing()
 set(TEST_SOURCES
     tests/ExponentialTests.cpp
     # tests/LogLogisticTests.cpp
-    # tests/LogNormalTests.cpp
+    tests/LogNormalTests.cpp
 )
 
 add_executable(${PROJECT_NAME}_tests 
