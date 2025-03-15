@@ -8,7 +8,9 @@
 
 #include "OnlineRANSAC.h"
 #include "ExponentialEstimator.h"
-#include "matplotlibcpp.h"
+#if _PYTHON
+    #include "matplotlibcpp.h"
+#endif
 
 using namespace std;
 namespace plt = matplotlibcpp;
@@ -94,7 +96,7 @@ int main() {
         }
     }
 
-
+#ifdef _PYTHON
     // Initialize Python environment
     if (!plt::PythonEnvironment::initialize()) {
         std::cerr << "Error initializing Python" << std::endl;
@@ -128,6 +130,7 @@ int main() {
     plt::show(); //    plt::save("./basic.png");
 
     plt::PythonEnvironment::finalize();
+#endif
 
     return 0;
 }

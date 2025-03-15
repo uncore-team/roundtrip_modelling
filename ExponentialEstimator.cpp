@@ -199,7 +199,7 @@ double ExponentialEstimator::cdf(const ModelParams& params, const double& sample
 vector<double> ExponentialEstimator::cdf(const ModelParams& params, const vector<double>& samples) {
 
     // Parameters
-    const double alpha = params.alpha;
+    //const double alpha = params.alpha;
     const double beta = params.beta;
 
     if (beta <= 0) {
@@ -269,7 +269,7 @@ double ExponentialEstimator::pdf(const ModelParams& params, const double& sample
 vector<double> ExponentialEstimator::pdf(const ModelParams& params, const vector<double>& samples) {
 
     // Parameters
-    const double alpha = params.alpha;
+    //const double alpha = params.alpha;
     const double beta = params.beta;
 
     if (beta <= 0) {
@@ -291,74 +291,80 @@ vector<double> ExponentialEstimator::pdf(const ModelParams& params, const vector
 
 /**
  * Generates a single random value from the exponential distribution using
- * the inverse transform sampling method. Uses the uniform distribution
- * inherited from the base class.
+ * the C++ Standard Library's exponential_distribution.
  * 
  * @param params Distribution parameters {alpha, beta} where:
- *        - alpha: location parameter
- *        - beta: rate parameter (1/mean)
+ *        - alpha: Location parameter (shift)
+ *        - beta: Rate parameter (1/mean, must be positive)
  * @return Random value following the exponential distribution
  * 
- * Uses inverse transform sampling with the formula:
- * X = -ln(1-u)/beta + alpha
- * where u ~ U(0,1)
- * 
  * Implementation details:
+ * - Uses exponential_distribution for exponential random number generation
  * - Validates beta parameter (must be positive)
- * - Uses uniform distribution from base class
- * - Applies location-scale transformation
+ * - Applies location-scale transformation: X = alpha + Y, where Y ~ Exp(beta)
  * 
  * @throws invalid_argument if beta <= 0
  */
 double ExponentialEstimator::rnd(const ModelParams& params) {
 
-    // Parameters
+    // Extract parameters
     const double alpha = params.alpha;
     const double beta = params.beta;
 
+    // Validate beta parameter
     if (beta <= 0.0) {
-        throw invalid_argument("Invalid beta for exponential distribution");
+        throw invalid_argument("Invalid beta for exponential distribution (must be > 0)");
     }
 
-    const double u = m_unif_dist(m_rnd_gen);
-    return alpha - log(1.0 - u)/beta;
-}    
+    // Create an exponential distribution with rate parameter beta
+    exponential_distribution<double> exponential(beta);
+
+    // Generate a random value from the exponential distribution and apply the shift alpha
+    return alpha + exponential(m_rnd_gen);
+}
 
 /**
  * Generates multiple random values from the exponential distribution using
- * vectorized inverse transform sampling. Optimized for generating large
- * numbers of random values efficiently.
+ * the C++ Standard Library's exponential_distribution.
  * 
  * @param params Distribution parameters {alpha, beta} where:
- *        - alpha: location parameter
- *        - beta: rate parameter (1/mean)
+ *        - alpha: Location parameter (shift)
+ *        - beta: Rate parameter (1/mean, must be positive)
  * @param length Number of random values to generate
- * 
  * @return Vector of random values following the exponential distribution
  * 
  * Implementation details:
+ * - Uses exponential_distribution for exponential random number generation
  * - Validates beta parameter (must be positive)
+ * - Applies location-scale transformation: X = alpha + Y, where Y ~ Exp(beta)
+ * - Uses OpenMP for parallel generation when length > OMP_THRESH
  * 
  * @throws invalid_argument if beta <= 0
  */
 vector<double> ExponentialEstimator::rnd(const ModelParams& params, const unsigned& length) {
 
-    // Parameters
+    // Extract parameters
     const double alpha = params.alpha;
     const double beta = params.beta;
 
+    // Validate beta parameter
     if (beta <= 0.0) {
-        throw invalid_argument("Invalid beta for exponential distribution");
+        throw invalid_argument("Invalid beta for exponential distribution (must be > 0)");
     }
 
+    // Create an exponential distribution with rate parameter beta
+    exponential_distribution<double> exponential(beta);
+
+    // Generate 'length' random values from the exponential distribution
     vector<double> rnd(length);
 
     #ifdef _OPENMP
         #pragma omp parallel for if(length > OMP_THRESH)
     #endif
     for (size_t i = 0; i < length; ++i) {
-        rnd[i] = this->rnd(params);
+        rnd[i] = alpha + exponential(m_rnd_gen);
     }
+
     return rnd;
 }
 

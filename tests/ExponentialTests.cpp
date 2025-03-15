@@ -131,20 +131,37 @@ TEST_F(ExponentialTest, ValidateRandomGeneration) {
     params.beta = beta_true;
     const size_t n_samples = 10000;
 
-    auto random_samples = estimator.rnd(params, n_samples);
+    const vector<double> random_samples = estimator.rnd(params, n_samples);
 
+    // Check vector size
     ASSERT_EQ(random_samples.size(), n_samples);
 
+    // Check all samples are greater than or equal to alpha
+    EXPECT_TRUE(all_of(random_samples.begin(), random_samples.end(),
+                        [this](double x) { return x >= alpha_true; }));
+    double accum = 0.0;
+    const double n_samplesf = static_cast<double>(n_samples);
+
     // Statistical tests
-    double sample_mean = accumulate(random_samples.begin(), random_samples.end(), 0.0) / n_samples;
-    double theoretical_mean = alpha_true + 1.0/beta_true;
+    accum = 0.0; // Sample mean
+    #ifdef _OPENMP
+        #pragma omp parallel for reduction(+:accum) if(n_samples > OMP_THRESH)
+    #endif
+    for (const double x: random_samples) { accum += x; }
+    const double sample_mean = accum/n_samplesf;
+    const double theoretical_mean = alpha_true + 1.0/beta_true;
+
+    accum = 0.0; // Sample variance
+    #ifdef _OPENMP
+        #pragma omp parallel for reduction(+:accum) if(n_samples > OMP_THRESH)
+    #endif
+    for (const double x: random_samples) { accum += pow(x - sample_mean, 2.0); }
+    const double sample_variance = accum/(n_samplesf - 1.0);
+    const double theoretical_variance = 1.0/(beta_true*beta_true);
 
     // Check sample statistics (with reasonable tolerances for random data)
     EXPECT_NEAR(sample_mean, theoretical_mean, 0.1);
-
-    // Verify all samples are greater than or equal to alpha
-    EXPECT_TRUE(all_of(random_samples.begin(), random_samples.end(),
-                           [this](double x) { return x >= alpha_true; }));
+    EXPECT_NEAR(sample_variance, theoretical_variance, 0.1);
 }
 
 TEST_F(ExponentialTest, ValidateStatistics) {
@@ -169,7 +186,7 @@ TEST_F(ExponentialTest, ValidateBoundaryConditions) {
     params.alpha = alpha_true;
     params.beta = beta_true;
 
-    EXPECT_NEAR(estimator.pdf(params, params.alpha), 1.0, 1e-10);
+    EXPECT_NEAR(estimator.pdf(params, params.alpha), params.beta, 1e-10);
     EXPECT_NEAR(estimator.pdf(params, Inf), 0.0, 1e-10);
 
     EXPECT_NEAR(estimator.cdf(params, params.alpha), 0.0, 1e-10);

@@ -729,36 +729,43 @@ vector<double> LogLogisticEstimator::pdf(const ModelParams& params, const vector
 
 /**
  * Generates a single random value from the log-logistic distribution using
- * the inverse transform sampling method. Uses the uniform distribution
- * inherited from the base class.
+ * inverse transform sampling.
  * 
  * @param params Distribution parameters {a, b, c} where:
- *        - a (offset): location parameter (minimum possible value)
- *        - b (alpha): scale parameter
- *        - c (sigma): shape parameter
+ *        - a (offset): Location parameter (minimum possible value)
+ *        - b (alpha): Scale parameter (must be positive)
+ *        - c (sigma): Shape parameter (must be positive)
  * @return Random value following the log-logistic distribution
  * 
  * Uses inverse transform sampling with the formula:
- * X = a + exp(μ + σ*log(p/(1-p)))
- * where:
- * - μ = log(b)
- * - σ = c
- * - p ~ U(0,1)
+ * X = a + b * (p / (1 - p))^(1/c)
+ * where p ~ U(0,1)
  * 
  * Implementation details:
- * - Uses uniform distribution from base class
- * - Pre-computes common terms for efficiency
+ * - Uses std::uniform_real_distribution for uniform random number generation
+ * - Validates parameters b and c to ensure they are positive
  * - Applies location-scale transformation
+ * 
+ * @throws invalid_argument if b <= 0 or c <= 0
  */
 double LogLogisticEstimator::rnd(const ModelParams& params) {
 
-    // Get parameters
+    // Extract parameters
     const double offset = params.a;
-    const double mu = log(params.b);
+    const double alpha = params.b;
     const double sigma = params.c;
 
-    const double p = m_unif_dist(m_rnd_gen);
-    return offset + exp(mu + sigma * log(p / (1.0 - p)));
+    // Validate parameters
+    if (alpha <= 0.0 || sigma <= 0.0) {
+        throw invalid_argument("Invalid parameters for log-logistic distribution (b and c must be > 0)");
+    }
+
+    // Generate a uniform random number in (0, 1)
+    uniform_real_distribution<double> uniform(0.0, 1.0);
+    const double u = uniform(m_rnd_gen);
+
+    // Apply inverse transform sampling
+    return offset + alpha*pow(u/(1.0 - u), 1.0/sigma);
 }
 
 /**
@@ -788,10 +795,15 @@ double LogLogisticEstimator::rnd(const ModelParams& params) {
 vector<double> LogLogisticEstimator::rnd(const ModelParams& params, const unsigned& length) {
 
     // Get parameters
-    const double offset = params.a;
+    //const double offset = params.a;
     const double alpha = params.b;
     const double sigma = params.c;
-    const double mu = log(alpha);
+    //const double mu = log(alpha);
+
+    // Validate parameters
+    if (alpha <= 0.0 || sigma <= 0.0) {
+        throw invalid_argument("Invalid parameters for log-logistic distribution (b and c must be > 0)");
+    }
 
     // Generate 'length' data from loglogistic distribution
     vector<double> rnd(length);
@@ -800,8 +812,7 @@ vector<double> LogLogisticEstimator::rnd(const ModelParams& params, const unsign
         #pragma omp parallel for if(length > OMP_THRESH)
     #endif
     for (unsigned i = 0; i < length; ++i) {
-        const double p = m_unif_dist(m_rnd_gen);  // Generate random number from uniform distribution
-        rnd[i] = offset + exp(mu + sigma * log(p / (1.0 - p)));
+        rnd[i] = this->rnd(params);
     }
     return rnd;
 }
