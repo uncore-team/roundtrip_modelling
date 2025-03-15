@@ -130,11 +130,11 @@ if(MINGW)
     )
 endif()
 
-#target_link_options(${PROJECT_NAME} PRIVATE ) # -static
+target_link_options(${PROJECT_NAME} PRIVATE -static)
 target_link_libraries(${PROJECT_NAME} PRIVATE 
     GTest
     ALGLIB
-    OpenMP::OpenMP_CXX
+    gomp # OpenMP::OpenMP_CXX
     Python3::Python
     Python3::Module
     Python3::NumPy
@@ -166,11 +166,11 @@ else()
     target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-#target_link_options(${PROJECT_NAME}_tests PRIVATE ) # -static
+target_link_options(${PROJECT_NAME}_tests PRIVATE -static)
 target_link_libraries(${PROJECT_NAME}_tests PRIVATE 
     GTest
     ALGLIB
-    OpenMP::OpenMP_CXX
+    gomp # OpenMP::OpenMP_CXX
     stdc++
 )
 
