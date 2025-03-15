@@ -24,7 +24,7 @@ using namespace std;
  * - Initializes random number generator
  * - Sets up uniform distribution [0,1]
  */
-Estimator::Estimator(unsigned min_len) : m_min_len(min_len), m_rnd_gen(m_rnd_dev()), m_unif_dist(0.0, 1.0) {
+Estimator::Estimator(unsigned min_len) : m_min_len(min_len), m_rnd_gen(m_rnd_dev()) {
 }
 
 /**

@@ -16,10 +16,6 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Force GCC compiler
-set(CMAKE_C_COMPILER gcc)
-set(CMAKE_CXX_COMPILER g++)
-
 # Set default build type
 set(default_build_type "Release")
 if(EXISTS "${CMAKE_SOURCE_DIR}/.git")
@@ -36,19 +32,40 @@ endif()
 # Find Python3
 find_package(Python3 COMPONENTS Interpreter Development NumPy REQUIRED)
 if(Python3_FOUND)
-    # message(STATUS "Python3 found at ${Python3_EXECUTABLE}")
-    include_directories(${Python3_INCLUDE_DIR})
+    message(STATUS "Python3 found at ${Python3_EXECUTABLE}")
+    add_definitions(-D_PYTHON)
 else()
-    message(FATAL_ERROR "Python3 not found. Please set CMAKE_PREFIX_PATH correctly.")
+    message(WARNING "Python3 not found. Please set CMAKE_PREFIX_PATH correctly.")
 endif()
 
 # Find OpenMP
 find_package(OpenMP REQUIRED)
 if(OpenMP_FOUND)
-    # message(STATUS "OpenMP found at ${OpenMP_gomp_LIBRARY}")
-    include_directories(${OpenMP_INCLUDE_DIR})
+    
+    if(UNIX AND NOT APPLE)
+        
+        # Find static OpenMP library: libgomp.a
+        execute_process(
+            COMMAND ${CMAKE_CXX_COMPILER} -print-file-name=libgomp.a
+            OUTPUT_VARIABLE GOMP_STATIC_LIBRARY
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+
+        if(GOMP_STATIC_LIBRARY)
+            message(STATUS "OpenMP found at ${GOMP_STATIC_LIBRARY}")
+        else()
+            message(WARNING "OpenMP not found. Please set CMAKE_PREFIX_PATH correctly.")
+        endif()
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+
+        #add_definitions(-D_OPENMP) # Necessary here
+
+    else()
+        set(GOMP_STATIC_LIBRARY "OpenMP::OpenMP_CXX")
+    endif()
+
 else()
-    message(FATAL_ERROR "OpenMP not found. Please set CMAKE_PREFIX_PATH correctly.")
+    message(WARNING "OpenMP not found. Please set CMAKE_PREFIX_PATH correctly.")
 endif()
 
 # GTest library
@@ -83,7 +100,7 @@ elseif(UNIX)
 
     add_definitions(-DAE_OS=AE_POSIX)
     execute_process(COMMAND uname -m OUTPUT_VARIABLE ARCHITECTURE)
-    message(STATUS "Detected architecture: ${ARCHITECTURE}")
+    #message(STATUS "Detected architecture: ${ARCHITECTURE}")
 
     if (${ARCHITECTURE} MATCHES "x86_64")
         message(STATUS "Intel CPU detected, adding Intel-specific definitions")
@@ -115,11 +132,11 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${OpenMP_INCLUDE_DIRS}
 )
 
-target_compile_options(${PROJECT_NAME} PRIVATE -libstdc++)
+#target_compile_options(${PROJECT_NAME} PRIVATE -libstdc++)
 if(MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE /W4)
 else()
-    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Wunused)
 endif()
 
 # Add compile definitions for proper I/O handling (needed for MinGW)
@@ -134,7 +151,7 @@ target_link_options(${PROJECT_NAME} PRIVATE -static)
 target_link_libraries(${PROJECT_NAME} PRIVATE 
     GTest
     ALGLIB
-    gomp # OpenMP::OpenMP_CXX
+    ${GOMP_STATIC_LIBRARY}
     Python3::Python
     Python3::Module
     Python3::NumPy
@@ -161,16 +178,16 @@ add_executable(${PROJECT_NAME}_tests
 
 target_compile_options(${PROJECT_NAME}_tests PRIVATE -libstdc++)
 if(MSVC)
-    target_compile_options(${PROJECT_NAME} PRIVATE /W4)
+    target_compile_options(${PROJECT_NAME}_tests PRIVATE /W4)
 else()
-    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(${PROJECT_NAME}_tests PRIVATE -Wall -Wextra -Wpedantic -Wunused)
 endif()
 
 target_link_options(${PROJECT_NAME}_tests PRIVATE -static)
 target_link_libraries(${PROJECT_NAME}_tests PRIVATE 
     GTest
     ALGLIB
-    gomp # OpenMP::OpenMP_CXX
+    ${GOMP_STATIC_LIBRARY}
     stdc++
 )
 

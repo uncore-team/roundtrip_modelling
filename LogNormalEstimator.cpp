@@ -69,20 +69,41 @@ double LogNormalEstimator::gamma_fvec(const double gamma, const void* ptr) {
         return NaN;
     }
 
-    // Calculate mean and standard deviation using Welford's online algorithm
-    // IMPORTANT: This algorithm can not be parallelized
-    double mu = 0.0;     // Mean
-    double M2 = 0.0;     // Second moment (used for standard deviation)
-    double n = 0;
-    for (const double& sample : samples) {
-        const double value = log(sample - gamma);
-        n++;
-        const double delta = value - mu;  // Distance to current mean
-        mu += delta/n;                    // Update mean incrementally
-        M2 += delta*(value - mu);         // Update M2 incrementally
-    }
+    // // Calculate mean and standard deviation using Welford's online algorithm
+    // // IMPORTANT: This algorithm can not be parallelized
+    // double mu = 0.0;     // Mean
+    // double M2 = 0.0;     // Second moment (used for standard deviation)
+    // double n = 0;
+    // for (const double& sample : samples) {
+    //     const double value = log(sample - gamma);
+    //     n++;
+    //     const double delta = value - mu;  // Distance to current mean
+    //     mu += delta/n;                    // Update mean incrementally
+    //     M2 += delta*(value - mu);         // Update M2 incrementally
+    // }
+    const double lenf = static_cast<double>(len);
 
-    const double sigma = sqrt(M2/n); // Calculate standard deviation
+    // Calculate mean and standard deviation
+    double mu = 0.0;     // Mean
+    #ifdef _OPENMP
+        #pragma omp parallel for reduction(+:mu) if(len > OMP_THRESH)
+    #endif  
+    for (const double& sample : samples) {
+        mu += log(sample - gamma);
+    }
+    mu /= lenf;
+
+    double sigma2 = 0.0;     // Second moment (used for standard deviation)
+    #ifdef _OPENMP
+        #pragma omp parallel for reduction(+:sigma2) if(len > OMP_THRESH)
+    #endif  
+    for (const double& sample : samples) {
+        const double delta = log(sample - gamma) - mu;
+        sigma2 += delta*delta;
+    }
+    sigma2 /= (lenf - 1.0);
+
+    const double sigma = sqrt(sigma2); // Calculate standard deviation
 
     return log(min - gamma) - mu - kr*sigma;
 }
@@ -132,23 +153,44 @@ Model LogNormalEstimator::fit(const vector<double>& samples) {
         return Model(); // return an empty model: {false, ModelType::None, {NAN, NAN, NAN}, {Inf, NAN}}
     }        
 
-    // Calculate mean and standard deviation using Welford's online algorithm
-    // IMPORTANT: This algorithm can not be parallelized
+    // // Calculate mean and standard deviation using Welford's online algorithm
+    // // IMPORTANT: This algorithm can not be parallelized
+    // double mu = 0.0;     // Mean
+    // double M2 = 0.0;     // Second moment (used for standard deviation)
+    // double n = 0;
+    // for (const double& sample : samples) {
+    //     const double value = log(sample - gamma);
+    //     n++;
+    //     const double delta = value - mu;
+    //     mu += delta/n;
+    //     M2 += delta*(value - mu);
+    // }
+    const double lenf = static_cast<double>(len);
+
+    // Calculate mean and standard deviation
     double mu = 0.0;     // Mean
-    double M2 = 0.0;     // Second moment (used for standard deviation)
-    double n = 0;
+    #ifdef _OPENMP
+        #pragma omp parallel for reduction(+:mu) if(len > OMP_THRESH)
+    #endif  
     for (const double& sample : samples) {
-        const double value = log(sample - gamma);
-        n++;
-        const double delta = value - mu;
-        mu += delta/n;
-        M2 += delta*(value - mu);
+        mu += log(sample - gamma);
     }
+    mu /= lenf;
+
+    double sigma2 = 0.0;     // Second moment (used for standard deviation)
+    #ifdef _OPENMP
+        #pragma omp parallel for reduction(+:sigma2) if(len > OMP_THRESH)
+    #endif  
+    for (const double& sample : samples) {
+        const double delta = log(sample - gamma) - mu;
+        sigma2 += delta*delta;
+    }
+    sigma2 /= (lenf - 1.0);
 
     ModelParams params;
     params.gamma = gamma;
     params.mu = mu;
-    params.sigma = sqrt(M2/(n - 1));
+    params.sigma = sqrt(sigma2);
 
     auto [reject, gof_] = gof(params, samples);
 
@@ -285,8 +327,8 @@ double LogNormalEstimator::cdf(const ModelParams& params, const double& sample) 
 vector<double> LogNormalEstimator::cdf(const ModelParams& params, const vector<double>& samples) {
 
     // Parameters
-    const double gamma = params.gamma;
-    const double mu = params.mu;
+    //const double gamma = params.gamma;
+    //const double mu = params.mu;
     const double sigma = params.sigma;
 
     if (sigma <= 0.0) {
@@ -361,9 +403,9 @@ double LogNormalEstimator::pdf(const ModelParams& params, const double& sample) 
  */
 vector<double> LogNormalEstimator::pdf(const ModelParams& params, const vector<double>& samples) {
 
-   // Parameters
-    const double gamma = params.gamma;
-    const double mu = params.mu;
+    // Parameters
+    //const double gamma = params.gamma;
+    //const double mu = params.mu;
     const double sigma = params.sigma;
 
     if (sigma <= 0.0) {
@@ -385,71 +427,83 @@ vector<double> LogNormalEstimator::pdf(const ModelParams& params, const vector<d
 
 /**
  * Generates a single random value from the log-normal distribution using
- * the Box-Muller transform method.
+ * the C++ Standard Library's lognormal_distribution.
  * 
  * @param params Distribution parameters {gamma, mu, sigma} where:
  *        - gamma: Location parameter (minimum possible value)
  *        - mu: Mean of the associated normal distribution (μ)
  *        - sigma: Standard deviation of the associated normal distribution (σ > 0)
- * @return Random value X = gamma + exp(α + σZ) where Z ~ N(0,1)
+ * @return Random value X = gamma + Y, where Y ~ LogNormal(μ, σ)
  * 
  * Implementation details:
- * - Uses Box-Muller transform for normal random generation
- * - Validates sigma parameter
- * - Uses inverse error function for normal approximation
+ * - Uses lognormal_distribution for log-normal random number generation
+ * - Validates sigma parameter to ensure it is positive
+ * 
+ * @throws invalid_argument if sigma <= 0
  */
 double LogNormalEstimator::rnd(const ModelParams& params) {
 
-   // Parameters
-   const double gamma = params.gamma;
-   const double mu = params.mu;
-   const double sigma = params.sigma;
+    // Extract parameters
+    const double gamma = params.gamma;
+    const double mu = params.mu;
+    const double sigma = params.sigma;
 
+    // Validate sigma parameter
     if (sigma <= 0.0) {
         throw invalid_argument("Invalid sigma parameter for log-normal distribution (must be > 0)");
     }
 
-    // Box-Muller transform to get standard normal
-    const double u = m_unif_dist(m_rnd_gen);
-    const double z = sqrt(2.0)*_erfinv(2.0*u - 1.0);
+    // Create a log-normal distribution with parameters mu and sigma
+    lognormal_distribution<double> lognormal(mu, sigma);
 
-    return gamma + exp(mu + sigma*z);  // Transform to log-normal with parameters
-}    
+    // Generate a random value from the log-normal distribution and apply the shift gamma
+    return gamma + lognormal(m_rnd_gen);
+}
 
 /**
- * Generates random values from a log-normal distribution with offset.
- * Uses Box-Muller transform to generate normal variables and then
- * transforms them to log-normal.
+ * Generates multiple random values from the log-normal distribution using
+ * the C++ Standard Library's lognormal_distribution.
  * 
  * @param params Distribution parameters {gamma, mu, sigma} where:
  *        - gamma: Location parameter (minimum possible value)
  *        - mu: Mean of the associated normal distribution (μ)
  *        - sigma: Standard deviation of the associated normal distribution (σ > 0)
- * @param length Number of samples in output vector
- * @return Vector of random values from log-normal(gamma, mu, sigma)
+ * @param length Number of random values to generate
+ * @return Vector of random values following the log-normal distribution
  * 
  * Implementation details:
- * - Uses uniform distribution to generate base random numbers
- * - Applies Box-Muller transform for normal distribution
- * - Transforms to log-normal via exp()
+ * - Uses lognormal_distribution for log-normal random number generation
+ * - Validates sigma parameter to ensure it is positive
+ * - Uses OpenMP for parallel generation when length > OMP_THRESH
+ * 
+ * @throws invalid_argument if sigma <= 0
  */
 vector<double> LogNormalEstimator::rnd(const ModelParams& params, const unsigned& length) {
 
-   // Parameters
-   const double gamma = params.gamma;
-   const double mu = params.mu;
-   const double sigma = params.sigma;
+    // Extract parameters
+    const double gamma = params.gamma;
+    const double mu = params.mu;
+    const double sigma = params.sigma;
 
-   // Generate 'length' data from loglogistic distribution
-   vector<double> rnd(length);
+    // Validate sigma parameter
+    if (sigma <= 0.0) {
+        throw invalid_argument("Invalid sigma parameter for log-normal distribution (must be > 0)");
+    }
 
-   #ifdef _OPENMP
-       #pragma omp parallel for if(length > OMP_THRESH)
-   #endif
-   for (size_t i = 0; i < length; ++i) {
-        rnd[i] = this->rnd(params); // Transform to log-normal with parameters
-   }
-   return rnd;
+    // Create a log-normal distribution with parameters mu and sigma
+    lognormal_distribution<double> lognormal(mu, sigma);
+
+    // Generate 'length' random values from the log-normal distribution
+    vector<double> rnd(length);
+
+    #ifdef _OPENMP
+        #pragma omp parallel for if(length > OMP_THRESH)
+    #endif
+    for (size_t i = 0; i < length; ++i) {
+        rnd[i] = gamma + lognormal(m_rnd_gen);
+    }
+
+    return rnd;
 }
 
 /**

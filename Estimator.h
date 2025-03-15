@@ -163,7 +163,6 @@ protected:
      */
     random_device m_rnd_dev;
     mt19937 m_rnd_gen;
-    uniform_real_distribution<double> m_unif_dist;  ///< Uniform distribution between 0 and 1
 
     /**
      * @brief Calculates the error function for a given value

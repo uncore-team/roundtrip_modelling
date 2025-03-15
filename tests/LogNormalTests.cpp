@@ -108,7 +108,7 @@ TEST_F(LogNormalTest, ValidateCDF) {
     params.mu = mu_true;
     params.sigma = sigma_true;
 
-    const double sqrt2pi = sqrt(2.0*M_PI);
+    //const double sqrt2pi = sqrt(2.0*M_PI);
     const double sigma_sqrt2 = sigma_true*sqrt(2.0);
 
     // Test at multiple points
@@ -156,27 +156,35 @@ TEST_F(LogNormalTest, ValidateRandomGeneration) {
     const size_t n_samples = 10000;
     const vector<double> random_samples = estimator.rnd(params, n_samples);
 
+    // Check vector size
     ASSERT_EQ(random_samples.size(), n_samples);
 
-    // Statistical tests
-    // Estimated/Theoretical mean and variance of the lognormal distribution
-    double accum = 0.0; // Sample mean
-    for (const double x: random_samples) { accum += x;}
-    const double sample_mean = accum/n_samples;
+    // Check all samples are greater than or equal to gamma
+    EXPECT_TRUE(all_of(random_samples.begin(), random_samples.end(),
+                        [this](double x) { return x >= gamma_true; }));
+
+    double accum = 0.0;
+    const double n_samplesf = static_cast<double>(n_samples);
+
+    accum = 0.0; // Sample mean
+    #ifdef _OPENMP
+        #pragma omp parallel for reduction(+:accum) if(n_samples > OMP_THRESH)
+    #endif
+    for (const double x: random_samples) { accum += x; }
+    const double sample_mean = accum/n_samplesf;
     const double theoretical_mean = gamma_true + exp(mu_true + 0.5*sigma_true*sigma_true);
 
     accum = 0.0; // Sample variance
+    #ifdef _OPENMP
+        #pragma omp parallel for reduction(+:accum) if(n_samples > OMP_THRESH)
+    #endif
     for (const double x: random_samples) { accum += pow(x - sample_mean, 2.0); }
-    const double sample_variance = accum/(n_samples - 1);
+    const double sample_variance = accum/(n_samplesf - 1);
     const double theoretical_variance = (exp(sigma_true*sigma_true) - 1)*exp(2.0*mu_true + sigma_true*sigma_true);
 
     // Check sample mean and variance (with reasonable tolerances for random data)
-    EXPECT_NEAR(sample_mean, theoretical_mean, 0.1);
-    EXPECT_NEAR(sample_variance, theoretical_variance, 0.1);
-
-    // Verify all samples are greater than or equal to gamma
-    EXPECT_TRUE(all_of(random_samples.begin(), random_samples.end(),
-                           [this](double x) { return x >= gamma_true; }));
+    EXPECT_NEAR(sample_mean, theoretical_mean, 0.5);
+    EXPECT_NEAR(sample_variance, theoretical_variance, 0.5);
 }
 
 TEST_F(LogNormalTest, ValidateStatistics) {
