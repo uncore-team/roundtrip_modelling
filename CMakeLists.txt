@@ -176,7 +176,7 @@ add_executable(${PROJECT_NAME}_tests
     ExponentialEstimator.cpp
 )
 
-target_compile_options(${PROJECT_NAME}_tests PRIVATE -libstdc++)
+#target_compile_options(${PROJECT_NAME}_tests PRIVATE -libstdc++)
 if(MSVC)
     target_compile_options(${PROJECT_NAME}_tests PRIVATE /W4)
 else()
