@@ -109,6 +109,11 @@ else()
     target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Wunused)
 endif()
 
+# Add compile definitions for proper I/O handling (needed for MinGW)
+if(MINGW)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+endif()
+
 # Link libraries (static and dynamic)
 target_link_libraries(${PROJECT_NAME} PRIVATE 
     # Static
@@ -149,6 +154,11 @@ if(MSVC)
     target_compile_options(${PROJECT_NAME}_tests PRIVATE /W4)
 else()
     target_compile_options(${PROJECT_NAME}_tests PRIVATE -Wall -Wextra -Wpedantic -Wunused)
+endif()
+
+# Add compile definitions for proper I/O handling (needed for MinGW)
+if(MINGW)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
 endif()
 
 # Link libraries for tests (static and dynamic)
