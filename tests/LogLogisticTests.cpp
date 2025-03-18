@@ -3,61 +3,62 @@
 #include <random>
 
 #include <gtest/gtest.h>
-#include "LogNormalEstimator.h"
+#include "LogLogisticEstimator.h"
 
 using namespace std;
 
-class LogNormalTest : public ::testing::Test {
+class LogLogisticTest : public ::testing::Test {
 protected:
-    LogNormalEstimator estimator;
+    LogLogisticEstimator estimator;
     const size_t sample_size = 5000;
 
     const double gamma_true = 0.5;   // Location parameter (minimum possible value)
-    const double mu_true = 1.0;      // Mean of the associated normal distribution (μ)
-    const double sigma_true = 2.0;   // Standard deviation of the associated normal distribution (σ > 0)
+    const double alpha_true = 2.0;   // scale parameter and is also the median of the distribution
+    const double beta_true = 3.0;    // 1 / c shape
 
     vector<double> samples;
 
     void SetUp() override {
 
         mt19937 gen(42); // Fixed seed for reproducibility
-        lognormal_distribution<double> dist(mu_true, sigma_true);
+        uniform_real_distribution<double> dist(0.0, 1.0);
 
         samples.resize(sample_size);
         for(size_t i = 0; i < sample_size; ++i) {
-            samples[i] = gamma_true + dist(gen);
+            const double u = dist(gen);
+            samples[i] = gamma_true + alpha_true*pow(u/(1.0 - u), 1.0/beta_true);
         }
     }
 };
 
-TEST_F(LogNormalTest, ValidateParameterEstimation) {
+TEST_F(LogLogisticTest, ValidateParameterEstimation) {
 
     auto model = estimator.fit(samples);
 
     ASSERT_TRUE(model.defined);
-    EXPECT_NEAR(model.params.gamma, gamma_true, 0.05);
-    EXPECT_NEAR(model.params.mu, mu_true, 0.05);
-    EXPECT_NEAR(model.params.sigma, sigma_true, 0.05);
+    EXPECT_NEAR(model.params.a, gamma_true, 0.05);
+    EXPECT_NEAR(model.params.b, alpha_true, 0.05);
+    EXPECT_NEAR(model.params.c, 1.0/beta_true, 0.05);
 }
 
-TEST_F(LogNormalTest, ValidateGoodnessOfFit) {
+TEST_F(LogLogisticTest, ValidateGoodnessOfFit) {
 
     ModelParams params;
-    params.gamma = gamma_true;
-    params.mu = mu_true;
-    params.sigma = sigma_true;
+    params.a = gamma_true;
+    params.b = alpha_true;
+    params.c = 1/beta_true;
 
     // auto model = estimator.fit(samples);
     // auto [reject, gof] = estimator.gof(model.params, samples);
     auto [reject, gof] = estimator.gof(params, samples);
-    
+
     // For properly generated data, we expect not to reject the null hypothesis
     EXPECT_FALSE(reject);
     EXPECT_LT(gof.stat, gof.thresh); // Common significance level
 }
 
 /*
-TEST_F(LogNormalTest, ValidateOutlierDetection) {
+TEST_F(LogLogisticTest, ValidateOutlierDetection) {
     // Generate some outliers
     vector<double> data = samples;
     data.push_back(alpha_true + 10.0/beta_true); // Add obvious outlier
@@ -70,46 +71,41 @@ TEST_F(LogNormalTest, ValidateOutlierDetection) {
 }
 */
 
-TEST_F(LogNormalTest, ThrowsOnInsufficientSamples) {
+TEST_F(LogLogisticTest, ThrowsOnInsufficientSamples) {
 
     vector<double> small_sample = {1.0, 2.0};
     EXPECT_THROW(estimator.fit(small_sample), invalid_argument);
 }
 
-TEST_F(LogNormalTest, ValidatePDF) {
+TEST_F(LogLogisticTest, ValidatePDF) {
 
     ModelParams params;
-    params.gamma = gamma_true;
-    params.mu = mu_true;
-    params.sigma = sigma_true;
-
-    const double sqrt2pi = sqrt(2*M_PI);
-    const double two_sigmaSq = 2*sigma_true*sigma_true;
+    params.a = gamma_true;
+    params.b = alpha_true;
+    params.c = 1/beta_true;
 
     // Test at multiple points
     vector<double> test_points = {1.0, 1.5, 2.0, 2.5, 3.0};
     for(double x : test_points) {
         const double z = x - gamma_true;
         if (z < 0) {
-            EXPECT_EQ(estimator.pdf(params, x), 0.0); // PDF debe ser 0 si x <= gamma_true
+            EXPECT_EQ(estimator.pdf(params, x), 0.0); // PDF should be > 0 if x >= gamma_true
         }
         else {
-            const double exponent = -pow(log(z) - mu_true, 2)/two_sigmaSq;
-            const double expected_pdf = exp(exponent)/(z*sigma_true*sqrt2pi);
+            const double base = (x - gamma_true)/alpha_true;
+            const double expected_pdf = (beta_true/alpha_true)*pow(base, (beta_true - 1.0))/
+                                            pow((1.0 + pow(base, beta_true)), 2.0);
             EXPECT_NEAR(estimator.pdf(params, x), expected_pdf, 1e-10);
         }        
     }
 }
 
-TEST_F(LogNormalTest, ValidateCDF) {
+TEST_F(LogLogisticTest, ValidateCDF) {
 
     ModelParams params;
-    params.gamma = gamma_true;
-    params.mu = mu_true;
-    params.sigma = sigma_true;
-
-    //const double sqrt2pi = sqrt(2.0*M_PI);
-    const double sigma_sqrt2 = sigma_true*sqrt(2.0);
+    params.a = gamma_true;
+    params.b = alpha_true;
+    params.c = 1/beta_true;
 
     // Test at multiple points
     vector<double> test_points = {1.0, 1.5, 2.0, 2.5, 3.0};
@@ -119,18 +115,18 @@ TEST_F(LogNormalTest, ValidateCDF) {
             EXPECT_EQ(estimator.cdf(params, x), 0.0);
         }
         else {
-            const double expected_cdf = 0.5*(1.0 + erf((log(z) - mu_true)/sigma_sqrt2));
+            const double expected_cdf = 1.0/(1.0 + pow(alpha_true/(x - gamma_true), beta_true));
             EXPECT_NEAR(estimator.cdf(params, x), expected_cdf, 1e-10);
         }
     }
 }
 
-TEST_F(LogNormalTest, ValidateVectorizedOperations) {
+TEST_F(LogLogisticTest, ValidateVectorizedOperations) {
 
     ModelParams params;
-    params.gamma = gamma_true;
-    params.mu = mu_true;
-    params.sigma = sigma_true;
+    params.a = gamma_true;
+    params.b = alpha_true;
+    params.c = 1/beta_true;
 
     vector<double> test_points = {1.5, 2.0, 2.5};
     
@@ -146,12 +142,12 @@ TEST_F(LogNormalTest, ValidateVectorizedOperations) {
     }
 }
 
-TEST_F(LogNormalTest, ValidateRandomGeneration) {
+TEST_F(LogLogisticTest, ValidateRandomGeneration) {
 
     ModelParams params;
-    params.gamma = gamma_true;
-    params.mu = mu_true;
-    params.sigma = sigma_true;
+    params.a = gamma_true;
+    params.b = alpha_true;
+    params.c = 1/beta_true;
 
     const size_t n_samples = 10000;
     const vector<double> random_samples = estimator.rnd(params, n_samples);
@@ -172,7 +168,7 @@ TEST_F(LogNormalTest, ValidateRandomGeneration) {
     #endif
     for (const double x: random_samples) { accum += x; }
     const double sample_mean = accum/n_samplesf;
-    const double theoretical_mean = gamma_true + exp(mu_true + 0.5*sigma_true*sigma_true);
+    const double theoretical_mean = gamma_true + (alpha_true*M_PI)/(beta_true*sin(M_PI/beta_true));
 
     accum = 0.0; // Sample variance
     #ifdef _OPENMP
@@ -180,44 +176,63 @@ TEST_F(LogNormalTest, ValidateRandomGeneration) {
     #endif
     for (const double x: random_samples) { accum += pow(x - sample_mean, 2.0); }
     const double sample_variance = accum/(n_samplesf - 1);
-    const double theoretical_variance = (exp(sigma_true*sigma_true) - 1)*exp(2.0*mu_true + sigma_true*sigma_true);
+    const double b = (M_PI/beta_true);
+    const double theoretical_variance = 
+            alpha_true*alpha_true*(2.0*b/sin(2.0*b) - pow((b/sin(b)), 2.0));
 
     // Check sample mean and variance (with reasonable tolerances for random data)
     EXPECT_NEAR(sample_mean, theoretical_mean, 0.5);
     EXPECT_NEAR(sample_variance, theoretical_variance, 0.5);
 }
 
-TEST_F(LogNormalTest, ValidateStatistics) {
+TEST_F(LogLogisticTest, ValidateStatistics) {
 
     ModelParams params;
-    params.gamma = gamma_true;
-    params.mu = mu_true;
-    params.sigma = sigma_true;
+    params.a = gamma_true;
+    params.b = alpha_true;
+    params.c = 1/beta_true;
 
     // Test expectation
-    const double theoretical_mean = gamma_true + exp(mu_true + 0.5*sigma_true*sigma_true);
-    EXPECT_NEAR(estimator.expectation(params), theoretical_mean, 1e-10);
+    if (beta_true <= 1.0)
+        EXPECT_EQ(estimator.expectation(params), NaN);
+    else {
+        const double theoretical_mean = gamma_true + 
+                                            (alpha_true*M_PI)/(beta_true*sin(M_PI/beta_true));
+        EXPECT_NEAR(estimator.expectation(params), theoretical_mean, 1e-10);
+    }
 
     // Test variance
-    const double theoretical_variance = (exp(sigma_true*sigma_true) - 1)*exp(2.0*mu_true + sigma_true*sigma_true);
-    EXPECT_NEAR(estimator.variance(params), theoretical_variance, 1e-10);
+    if (beta_true <= 2.0)
+        EXPECT_EQ(estimator.variance(params), NaN);
+    else
+    {
+        const double b = (M_PI/beta_true);
+        const double theoretical_variance = 
+                alpha_true*alpha_true*(2.0*b/sin(2.0*b) - pow((b/sin(b)), 2.0));
+        EXPECT_NEAR(estimator.variance(params), theoretical_variance, 1e-10);
+    }
 
     // Test mode
-    EXPECT_NEAR(estimator.mode(params), exp(mu_true - sigma_true*sigma_true), 1e-10);
+    if (beta_true <= 1.0)
+        EXPECT_EQ(estimator.mode(params), NaN);
+    else {
+        const double theoretical_mode = gamma_true + alpha_true*pow((beta_true - 1)/(beta_true + 1), 1.0/beta_true);
+        EXPECT_NEAR(estimator.mode(params), theoretical_mode, 1e-10);
+    }
 }
 
-TEST_F(LogNormalTest, ValidateBoundaryConditions) {
+TEST_F(LogLogisticTest, ValidateBoundaryConditions) {
 
     ModelParams params;
     // params.gamma = 1;
     // params.mu = 2;
     // params.sigma = 4;
-    params.gamma = gamma_true;
-    params.mu = mu_true;
-    params.sigma = sigma_true;
+    params.a = gamma_true;
+    params.b = alpha_true;
+    params.c = 1/beta_true;
 
     // Test with edge cases
-    EXPECT_NEAR(estimator.pdf(params, params.gamma), 0.0, 1e-10);
+    EXPECT_NEAR(estimator.pdf(params, gamma_true), 0.0, 1e-10);
     EXPECT_NEAR(estimator.pdf(params, Inf), 0.0, 1e-10);
 
     EXPECT_NEAR(estimator.cdf(params, 0.0), 0.0, 1e-10);

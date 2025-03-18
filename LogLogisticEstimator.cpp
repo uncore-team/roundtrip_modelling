@@ -586,9 +586,9 @@ tuple<bool, GoF> LogLogisticEstimator::gof(const ModelParams& params, const vect
  * on the three-parameter log-logistic distribution.
  * 
  * @param params Distribution parameters {a, b, c} where:
- *        - a (offset): location parameter (minimum possible value)
+ *        - a (gamma): location parameter (minimum possible value)
  *        - b (alpha): scale parameter
- *        - c (sigma): shape parameter
+ *        - c (1/beta): shape parameter
  * @param sample Single input value to evaluate
  * 
  * @return CDF value F(x) = 1/(1 + ((x-a)/b)^(-1/c))
@@ -600,14 +600,19 @@ tuple<bool, GoF> LogLogisticEstimator::gof(const ModelParams& params, const vect
  */
 double LogLogisticEstimator::cdf(const ModelParams& params, const double& sample) {
 
-    const double offset = params.a;
-    const double alpha = params.b;
-    const double beta = 1.0 / params.c;
+    const double a = params.a;
+    const double b = params.b;
+    const double c = params.c;
 
-    if (sample <= offset) {
+    // Validate parameters
+    if (b <= 0.0 || c <= 0.0) {
+        throw invalid_argument("Invalid parameters for log-logistic distribution (b and c must be > 0)");
+    }
+
+    if (sample <= a) {
         return 0.0;  // For x <= a, CDF is 0
     }
-    return 1.0 / (1.0 + pow((sample - offset) / alpha, -beta));
+    return 1.0/(1.0 + pow((sample - a)/b, -1.0/c));
 }
 
 /**
@@ -616,9 +621,9 @@ double LogLogisticEstimator::cdf(const ModelParams& params, const double& sample
  * on large datasets.
  * 
  * @param params Distribution parameters {a, b, c} where:
- *        - a (offset): location parameter (minimum possible value)
+ *        - a (gamma): location parameter (minimum possible value)
  *        - b (alpha): scale parameter
- *        - c (sigma): shape parameter
+ *        - c (1/beta): shape parameter
  * @param samples Vector of input values to evaluate
  * 
  * @return Vector of CDF values F(x) = 1/(1 + ((x-a)/b)^(-1/c))
@@ -631,9 +636,14 @@ double LogLogisticEstimator::cdf(const ModelParams& params, const double& sample
  */
 vector<double> LogLogisticEstimator::cdf(const ModelParams& params, const vector<double>& samples) {
 
-    const double offset = params.a;
-    const double alpha = params.b;
-    const double beta = 1.0 / params.c;
+    // const double a = params.a;
+    const double b = params.b;
+    const double c = params.c;
+
+    // Validate parameters
+    if (b <= 0.0 || c <= 0.0) {
+        throw invalid_argument("Invalid parameters for log-logistic distribution (b and c must be > 0)");
+    }
 
     size_t len = samples.size();
     vector<double> cdf(len);
@@ -642,11 +652,7 @@ vector<double> LogLogisticEstimator::cdf(const ModelParams& params, const vector
         #pragma omp parallel for if(len > OMP_THRESH)
     #endif
     for (size_t i = 0; i < len; ++i) {
-        if (samples[i] <= offset) {
-            cdf[i] = 0.0;
-        } else {
-            cdf[i] = 1.0 / (1.0 + pow((samples[i] - offset) / alpha, -beta));
-        }
+        cdf[i] = this->cdf(params, samples[i]);
     }
     return cdf;
 }
@@ -656,9 +662,9 @@ vector<double> LogLogisticEstimator::cdf(const ModelParams& params, const vector
  * the log-logistic distribution. Implements the analytical form of the PDF.
  * 
  * @param params Distribution parameters {a, b, c} where:
- *        - a (offset): location parameter (minimum possible value)
+ *        - a (gamma): location parameter (minimum possible value)
  *        - b (alpha): scale parameter
- *        - c (sigma): shape parameter
+ *        - c (1/beta): shape parameter
  * @param sample Single input value to evaluate
  * 
  * @return PDF value f(x) = (β/α)((x-a)/α)^(β-1)/(1+((x-a)/α)^β)^2
@@ -670,17 +676,22 @@ vector<double> LogLogisticEstimator::cdf(const ModelParams& params, const vector
  * - Uses transformed parameters for numerical stability
  */
 double LogLogisticEstimator::pdf(const ModelParams& params, const double& sample) {
-    const double offset = params.a;
-    const double alpha = params.b;
-    const double sigma = params.c;
-    const double beta = 1.0 / params.c;
 
-    if (sample <= offset) {
-        return 0.0;
+    const double a = params.a;
+    const double b = params.b;
+    const double c = params.c;
+
+    // Validate parameters
+    if (b <= 0.0 || c <= 0.0) {
+        throw invalid_argument("Invalid parameters for log-logistic distribution (b and c must be > 0)");
     }
 
-    const double temp = pow((sample - offset) / alpha, -beta);
-    return temp / (sigma * (sample - offset) * pow(1.0 + temp, 2));
+    if (sample <= a) {
+        return 0.0;  // For x <= a, PDF is 0
+    }
+    const double z = sample - a;
+    const double term = pow(z/b, -1.0/c);
+    return term/(c*z*pow(1.0 + term, 2.0));
 }
 
 /**
@@ -688,9 +699,9 @@ double LogLogisticEstimator::pdf(const ModelParams& params, const double& sample
  * the log-logistic distribution. Provides vectorized implementation for efficiency.
  * 
  * @param params Distribution parameters {a, b, c} where:
- *        - a (offset): location parameter (minimum possible value)
+ *        - a (gamma): location parameter (minimum possible value)
  *        - b (alpha): scale parameter
- *        - c (sigma): shape parameter
+ *        - c (1/beta): shape parameter
  * @param samples Vector of input values to evaluate
  * 
  * @return Vector of PDF values f(x) = (β/α)((x-a)/α)^(β-1)/(1+((x-a)/α)^β)^2
@@ -704,10 +715,14 @@ double LogLogisticEstimator::pdf(const ModelParams& params, const double& sample
 vector<double> LogLogisticEstimator::pdf(const ModelParams& params, const vector<double>& samples) {
 
     // Get and validate parameters
-    const double offset = params.a;
-    const double alpha = params.b;
-    const double sigma = params.c;
-    const double beta = 1.0 / params.c;
+    // const double a = params.a;
+    const double b = params.b;
+    const double c = params.c;
+
+    // Validate parameters
+    if (b <= 0.0 || c <= 0.0) {
+        throw invalid_argument("Invalid parameters for log-logistic distribution (b and c must be > 0)");
+    }
 
     // Calculate the PDF for the loglogistic distribution
     const size_t len = samples.size();
@@ -717,12 +732,7 @@ vector<double> LogLogisticEstimator::pdf(const ModelParams& params, const vector
         #pragma omp parallel for if(len > OMP_THRESH)
     #endif
     for (size_t i = 0; i < len; ++i) {
-        if (samples[i] <= offset) {
-            pdf[i] = 0;  // For x <= a, PDF is 0
-        } else {
-            const double temp = pow((samples[i] - offset) / alpha, -beta);
-            pdf[i] = temp / (sigma * (samples[i] - offset) * pow(1.0 + temp, 2));
-        }
+        pdf[i] = this->pdf(params, samples[i]);
     }
     return pdf;
 }
@@ -732,9 +742,9 @@ vector<double> LogLogisticEstimator::pdf(const ModelParams& params, const vector
  * inverse transform sampling.
  * 
  * @param params Distribution parameters {a, b, c} where:
- *        - a (offset): Location parameter (minimum possible value)
- *        - b (alpha): Scale parameter (must be positive)
- *        - c (sigma): Shape parameter (must be positive)
+ *        - a (gamma): location parameter (minimum possible value)
+ *        - b (alpha): scale parameter
+ *        - c (1/beta): shape parameter
  * @return Random value following the log-logistic distribution
  * 
  * Uses inverse transform sampling with the formula:
@@ -751,12 +761,12 @@ vector<double> LogLogisticEstimator::pdf(const ModelParams& params, const vector
 double LogLogisticEstimator::rnd(const ModelParams& params) {
 
     // Extract parameters
-    const double offset = params.a;
-    const double alpha = params.b;
-    const double sigma = params.c;
+    const double a = params.a;
+    const double b = params.b;
+    const double c = params.c;
 
     // Validate parameters
-    if (alpha <= 0.0 || sigma <= 0.0) {
+    if (b <= 0.0 || c <= 0.0) {
         throw invalid_argument("Invalid parameters for log-logistic distribution (b and c must be > 0)");
     }
 
@@ -765,7 +775,7 @@ double LogLogisticEstimator::rnd(const ModelParams& params) {
     const double u = uniform(m_rnd_gen);
 
     // Apply inverse transform sampling
-    return offset + alpha*pow(u/(1.0 - u), 1.0/sigma);
+    return a + b*pow(u/(1.0 - u), c);
 }
 
 /**
@@ -774,9 +784,9 @@ double LogLogisticEstimator::rnd(const ModelParams& params) {
  * numbers of random values efficiently.
  * 
  * @param params Distribution parameters {a, b, c} where:
- *        - a (offset): location parameter (minimum possible value)
+ *        - a (gamma): location parameter (minimum possible value)
  *        - b (alpha): scale parameter
- *        - c (sigma): shape parameter
+ *        - c (1/beta): shape parameter
  * @param length Number of random values to generate
  * @return Vector of random values following the log-logistic distribution
  * 
@@ -795,13 +805,12 @@ double LogLogisticEstimator::rnd(const ModelParams& params) {
 vector<double> LogLogisticEstimator::rnd(const ModelParams& params, const unsigned& length) {
 
     // Get parameters
-    //const double offset = params.a;
-    const double alpha = params.b;
-    const double sigma = params.c;
-    //const double mu = log(alpha);
+    //const double a = params.a;
+    const double b = params.b;
+    const double c = params.c;
 
     // Validate parameters
-    if (alpha <= 0.0 || sigma <= 0.0) {
+    if (b <= 0.0 || c <= 0.0) {
         throw invalid_argument("Invalid parameters for log-logistic distribution (b and c must be > 0)");
     }
 
@@ -823,9 +832,9 @@ vector<double> LogLogisticEstimator::rnd(const ModelParams& params, const unsign
  * the analytical formula.
  * 
  * @param params Distribution parameters {a, b, c} where:
- *        - a: location parameter (minimum possible value)
- *        - b: scale parameter
- *        - c: shape parameter
+ *        - a (gamma): location parameter (minimum possible value)
+ *        - b (alpha): scale parameter
+ *        - c (1/beta): shape parameter
  * @return Expected value E[X] = a + b*π*c/sin(π*c) when c < 1, NaN otherwise
  * 
  * Implementation details:
@@ -834,12 +843,16 @@ vector<double> LogLogisticEstimator::rnd(const ModelParams& params, const unsign
  * - Returns Inf when expectation does not exist
  */
 double LogLogisticEstimator::expectation(const ModelParams& params) {
+
+    const double a = params.a;
+    const double b = params.b;
     const double c = params.c;
-    const double pic = M_PI*c;
+
     if (c >= 1.0) {
         return NaN;  // Expectation does not exist for c >= 1
     }
-    return params.a + params.b * pic / sin(pic);
+    const double pic = M_PI*c;
+    return a + b*pic/sin(pic);
 }
 
 /**
@@ -848,9 +861,9 @@ double LogLogisticEstimator::expectation(const ModelParams& params) {
  * the analytical formula.
  * 
  * @param params Distribution parameters {a, b, c} where:
- *        - a: location parameter (minimum possible value)
- *        - b: scale parameter
- *        - c: shape parameter
+ *        - a (gamma): location parameter (minimum possible value)
+ *        - b (alpha): scale parameter
+ *        - c (1/beta): shape parameter
  * @return Variance when c < 0.5, NaN otherwise
  * 
  * Implementation details:
@@ -860,13 +873,15 @@ double LogLogisticEstimator::expectation(const ModelParams& params) {
  */
 double LogLogisticEstimator::variance(const ModelParams& params) {
 
+    // const double a = params.a;
+    const double b = params.b;
     const double c = params.c;
+
     if (c >= 0.5) {
         return NaN;  // Variance does not exist for c >= 0.5
     }
-
     const double pic = M_PI*c;
-    return params.b * (2*pic/(sin(2*pic)) - pow(pic/sin(pic), 2.0));
+    return b*b*(2*pic/(sin(2.0*pic)) - pow(pic/sin(pic), 2.0));
 }
 
 /**
@@ -874,9 +889,9 @@ double LogLogisticEstimator::variance(const ModelParams& params) {
  * The mode exists for all parameter values and has an analytical form.
  * 
  * @param params Distribution parameters {a, b, c} where:
- *        - a: location parameter (minimum possible value)
- *        - b: scale parameter
- *        - c: shape parameter
+ *        - a (gamma): location parameter (minimum possible value)
+ *        - b (alpha): scale parameter
+ *        - c (1/beta): shape parameter
  * @return Mode = a + b*((1-c)/(1+c))^c when c < 1, a otherwise
  * 
  * Implementation details:
@@ -884,9 +899,13 @@ double LogLogisticEstimator::variance(const ModelParams& params) {
  * - Uses transformed parameters for numerical stability
  */
 double LogLogisticEstimator::mode(const ModelParams& params) {
+
+    const double a = params.a;
+    const double b = params.b;
     const double c = params.c;
-    if (c >= 1) {
+
+    if (c >= 1.0) {
         return NaN;  // Mode does not exist for c >= 1
     }
-    return params.a + params.b * pow((1-c)/(1+c), c);
+    return a + b*pow((1-c)/(1+c), c);
 }
