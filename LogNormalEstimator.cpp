@@ -272,7 +272,20 @@ tuple<bool, GoF> LogNormalEstimator::gof(const ModelParams& params, const vector
     // Apply small sample correction
     A2 *= (1.0 + 0.75/lenf + 2.25/(lenf*lenf));
 
-    return {A2 > thresh, {A2, thresh}};
+    // return {A2 > thresh, {A2, thresh}};
+    double pvalue;
+    if (A2 <= 0.2)
+        pvalue = 1 - exp(-13.436 + 101.14*A2 - 223.73*A2*A2);
+    else if (A2 <= 0.34)
+        pvalue = 1 - exp(-8.318 + 42.796*A2 - 59.938*A2*A2);
+    else if (A2 <= 0.6)
+        pvalue = exp(0.9177 - 4.279*A2 - 1.38*A2*A2);
+    else if (A2 <= 153.467)
+        pvalue = exp(1.2937*A2 - 5.709*A2 + 0.0186*A2*A2);
+    else
+        pvalue = 0;
+
+    return {pvalue <= 0.05, {A2, pvalue}};
 }
 
 /**
