@@ -232,7 +232,7 @@ tuple<bool, GoF> LogNormalEstimator::gof(const ModelParams& params, const vector
     const double mu = params.mu;
     const double sigma = params.sigma;
 
-    const double thresh = 0.752;  // D'Agostino & Stephens (1986), p. 123, Table 4.7
+    // const double thresh = 0.752;  // D'Agostino & Stephens (1986), p. 123, Table 4.7
     const size_t len = samples.size();
     const double min = _min(samples);
 

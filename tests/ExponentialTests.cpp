@@ -177,7 +177,7 @@ TEST_F(ExponentialTest, ValidateStatistics) {
     EXPECT_NEAR(estimator.variance(params), 1.0/(beta_true*beta_true), 1e-10);
 
     // Test mode
-    EXPECT_NEAR(estimator.mode(params), 0.0, 1e-10);
+    EXPECT_NEAR(estimator.mode(params), alpha_true, 1e-10);
 }
 
 TEST_F(ExponentialTest, ValidateBoundaryConditions) {

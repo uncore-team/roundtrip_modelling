@@ -163,6 +163,14 @@ protected:
      */
     random_device m_rnd_dev;
     mt19937 m_rnd_gen;
+    uniform_real_distribution<double> m_uniform;
+
+    /**
+     * @brief Generates a single random value from the uniform distribution
+     * 
+     * @return Random value following the uniform distribution
+     */
+    double urnd();
 
     /**
      * @brief Calculates the error function for a given value
