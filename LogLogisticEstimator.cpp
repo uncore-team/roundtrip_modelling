@@ -771,8 +771,7 @@ double LogLogisticEstimator::rnd(const ModelParams& params) {
     }
 
     // Generate a uniform random number in (0, 1)
-    uniform_real_distribution<double> uniform(0.0, 1.0);
-    const double u = uniform(m_rnd_gen);
+    const double u = urnd();
 
     // Apply inverse transform sampling
     return a + b*pow(u/(1.0 - u), c);
@@ -805,7 +804,7 @@ double LogLogisticEstimator::rnd(const ModelParams& params) {
 vector<double> LogLogisticEstimator::rnd(const ModelParams& params, const unsigned& length) {
 
     // Get parameters
-    //const double a = params.a;
+    const double a = params.a;
     const double b = params.b;
     const double c = params.c;
 
@@ -821,7 +820,8 @@ vector<double> LogLogisticEstimator::rnd(const ModelParams& params, const unsign
         #pragma omp parallel for if(length > OMP_THRESH)
     #endif
     for (unsigned i = 0; i < length; ++i) {
-        rnd[i] = this->rnd(params);
+        const double u = urnd();
+        rnd[i] = a + b*pow(u/(1.0 - u), c); // Apply inverse transform sampling
     }
     return rnd;
 }

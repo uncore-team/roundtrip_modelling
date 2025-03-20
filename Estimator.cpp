@@ -24,7 +24,7 @@ using namespace std;
  * - Initializes random number generator
  * - Sets up uniform distribution [0,1]
  */
-Estimator::Estimator(unsigned min_len) : m_min_len(min_len), m_rnd_gen(m_rnd_dev()) {
+Estimator::Estimator(unsigned min_len) : m_min_len(min_len), m_rnd_gen(m_rnd_dev()), m_uniform(0.0, 1.0) {
 }
 
 /**
@@ -68,6 +68,16 @@ Estimator::Ptr Estimator::create(ModelType type) {
     else {
         throw invalid_argument("Invalid model type");
     }
+}
+
+/**
+ * Generates a single ramdon value from the uniform distribution using
+ * the C++ Standard Library's exponential_distribution
+ * 
+ * @return Value of the error function erf(x)
+ */
+double Estimator::urnd() {
+    return m_uniform(m_rnd_gen);
 }
 
 /**
