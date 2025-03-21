@@ -72,15 +72,17 @@ function [reject,stat,thresh]=LoglogisticGoF(x,a,b,c,flagprevmodel)
         x=x.';
     end
     n = length(x);
-    xLL = sort(x);
-    if (xLL(1) <= a)
+    % xLL = sort(x);
+    % if (xLL(1) <= a)
+    if (min(x) <= a)
     	reject = 1; % cannot accept a distribution if some value falls below its minimum
     	stat = Inf;
     	return;
     end
 
     % transform sample to LL2 (0 offset) and model (a,b,c) into Matlab model (mu,sigma)
-    xL = log(xLL-a);
+    % xL = log(xLL-a);
+    xL = log(x-a);
     mu = log(b); % alpha in the book
     s = c; % beta in the book
 

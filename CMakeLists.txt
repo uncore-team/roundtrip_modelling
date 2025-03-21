@@ -81,6 +81,7 @@ endif()
 
 # Main executable
 set(SOURCES
+    misc.cpp
     Estimator.cpp
     OnlineRANSAC.cpp
     LogLogisticEstimator.cpp
@@ -130,9 +131,9 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 enable_testing()
 
 set(TEST_SOURCES
-#    tests/ExponentialTests.cpp
+    tests/ExponentialTests.cpp
     tests/LogLogisticTests.cpp
-#    tests/LogNormalTests.cpp
+    tests/LogNormalTests.cpp
 )
 
 # Test executable

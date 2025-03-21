@@ -18,7 +18,7 @@ function [reject,stat,thresh,pvalue] = LognormalGof(x,offset,mu,sigma)
     ui = normcdf(y,mu,sigma); % if taking mu,sigma from the data:  ui=normcdf(zscore(y),0,1); % zscore embed de mean and sigma estimated from the data
     oneminusui = sort(1-ui);
     i = 1:n;
-    lastt = (2*i-1).*(log(ui)+log(oneminusui));
+    lastt = (2*i-1).*(log(ui)+log(oneminusui)); % alternative formulation
     asquare = -n-(1/n)*sum(lastt);
     adj = 1+0.75/n+2.25/(n^2);
     AD = asquare*adj;

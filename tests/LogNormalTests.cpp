@@ -27,6 +27,8 @@ protected:
         for(size_t i = 0; i < sample_size; ++i) {
             samples[i] = gamma_true + dist(gen);
         }
+
+        // write_data("ln3_samples.txt", samples);
     }
 };
 

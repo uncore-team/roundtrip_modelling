@@ -56,4 +56,8 @@ struct State {
     Model model;
 };
 
+extern void write_data(const string& filename, const vector<double>& data);
+extern vector<double> read_data(const string& filename);
+
+
 #endif // MODEL_H
