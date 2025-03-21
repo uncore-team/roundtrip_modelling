@@ -16,33 +16,6 @@
 using namespace std;
 
 /**
- * Reads numerical data from a file into a vector.
- * 
- * @param filename Path to the input file
- * @return Vector of double values read from file
- * 
- * Implementation details:
- * - Opens file in text mode
- * - Reads space-separated double values
- * - Validates file opening
- * 
- * @throws runtime_error if file cannot be opened
- */
-vector<double> read_data(const string& filename) {
-    vector<double> samples;
-    ifstream file(filename);
-    if (!file.is_open()) {
-        throw runtime_error("Could not open file");
-    }
-    double value;
-    while (file >> value) {
-        samples.push_back(value);
-    }
-    file.close();
-    return samples;
-}
-
-/**
  * Main program entry point.
  * Tests Online RANSAC algorithm with different configurations.
  * 

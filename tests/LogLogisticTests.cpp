@@ -28,6 +28,8 @@ protected:
             const double u = dist(gen);
             samples[i] = gamma_true + alpha_true*pow(u/(1.0 - u), 1.0/beta_true);
         }
+    
+        // write_data("ll3_samples.txt", samples);
     }
 };
 

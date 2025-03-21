@@ -23,6 +23,8 @@ protected:
         for(size_t i = 0; i < sample_size; ++i) {
             samples[i] = alpha_true + dist(gen);
         }
+
+        // write_data("exp2_samples.txt", samples);
     }
 };
 
