@@ -57,7 +57,11 @@ function [reject,stat,thresh]=LoglogisticGoF(x,a,b,c,flagprevmodel)
 %			other particular decreasing profile in STAT.
 % FLAGPREVMODEL -> 1 if the parameters do not come from sample; 0 if they have
 %                  been calculated from the same sample.
-    
+
+    if nargin == 4
+        flagprevmodel = 0;
+    end
+
     if flagprevmodel
         thresh = 2.492; % for the case that parameters do not come from sample; 0.05, p. 105, table 4.2, right tail
     else
