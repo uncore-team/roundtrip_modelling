@@ -273,6 +273,7 @@ tuple<bool, GoF> LogNormalEstimator::gof(const ModelParams& params, const vector
     A2 *= (1.0 + 0.75/lenf + 2.25/(lenf*lenf));
 
     // return {A2 > thresh, {A2, thresh}};
+    // D'Agostino & Stephens (1986): Page 127, Table 4.9, Case 3
     double pvalue;
     if (A2 <= 0.2)
         pvalue = 1 - exp(-13.436 + 101.14*A2 - 223.73*A2*A2);
