@@ -14,11 +14,18 @@ function [reject,stat,thresh,pvalue] = LognormalGof(x,offset,mu,sigma)
 
 % Taken from https://es.mathworks.com/matlabcentral/fileexchange/60147-normality-test-package
 
-    y = sort(log((x(:).') - offset)); % transform from lognormal to normal with expectation MU and std SIGMA
-    ui = normcdf(y,mu,sigma); % if taking mu,sigma from the data:  ui=normcdf(zscore(y),0,1); % zscore embed de mean and sigma estimated from the data
-    oneminusui = sort(1-ui);
+    % y = sort(log((x(:).') - offset)); % transform from lognormal to normal with expectation MU and std SIGMA
+    % ui = normcdf(y,mu,sigma); % if taking mu,sigma from the data:  ui=normcdf(zscore(y),0,1); % zscore embed de mean and sigma estimated from the data
+    % oneminusui = sort(1-ui);
+    % i = 1:n;
+    % lastt = (2*i-1).*(log(ui)+log(oneminusui));
+
+    y = log(x - offset); % alternative (it only requires a sort operation)
+    ui = normcdf(y, mu, sigma);
+    Z = sort(ui);
     i = 1:n;
-    lastt = (2*i-1).*(log(ui)+log(oneminusui)); % alternative formulation
+    lastt = (2*i - 1).*log(Z) + (2*n + 1 - 2*i).*log(1 - Z); % page 101, bottom formula
+
     asquare = -n-(1/n)*sum(lastt);
     adj = 1+0.75/n+2.25/(n^2);
     AD = asquare*adj;
