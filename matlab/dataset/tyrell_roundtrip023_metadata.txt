@@ -1,0 +1,8 @@
+Experiment ID: 023
+Name: phpsimul_echo_argentina_2014
+Class: realpapersensors
+Time units: ms
+Density (bytes): 20
+Network: 10-wifi+twisted1Gb+submarine
+Geoloc: 05-argentina-malaga
+Software: linuxi7 (robot), win32XP (station)

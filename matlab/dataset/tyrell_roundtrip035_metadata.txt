@@ -1,0 +1,8 @@
+Experiment ID: 035
+Name: static_robotcrumb2025
+Class: ciprirealrobofeb2025
+Time units: ms
+Density (bytes): 2880
+Network: 05-wifi+twisted1Gb
+Geoloc: 01-samebuilding
+Software: linuxi9ROS2 (robot), laptoplinuxROS2 (station)

@@ -1,0 +1,8 @@
+Experiment ID: 006
+Name: dens65536_smartphone_pcdespacho_oct2023
+Class: realoct2023
+Time units: ms
+Density (bytes): 65536
+Network: 09_2-4Gfiber
+Geoloc: 03-pinos
+Software: linuxphp2023 (robot), androidch2023 (station)

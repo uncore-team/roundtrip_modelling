@@ -1,0 +1,8 @@
+Experiment ID: 022
+Name: giraffe_odometry_cable_wifi_2014
+Class: realpapersensors
+Time units: ms
+Density (bytes): 9323
+Network: 05-wifi+twisted1Gb
+Geoloc: 01-samebuilding
+Software: miniPCwinCE (robot), win32XP (station)

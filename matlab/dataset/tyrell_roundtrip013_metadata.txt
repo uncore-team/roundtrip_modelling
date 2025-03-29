@@ -1,0 +1,8 @@
+Experiment ID: 013
+Name: sancho_laser_samebuilding_wifi_2014
+Class: realpapersensors
+Time units: ms
+Density (bytes): 724
+Network: 07-wifi
+Geoloc: 01-samebuilding
+Software: winlaptopsancho (robot), linuxff2014 (station)

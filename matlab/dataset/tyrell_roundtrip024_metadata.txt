@@ -1,0 +1,8 @@
+Experiment ID: 024
+Name: babelsimul_odometry_home_2014
+Class: realpapersensors
+Time units: ms
+Density (bytes): 80
+Network: 09-wifi+twisted1Gb+ISP
+Geoloc: 02-samecity
+Software: linuxi7 (robot), linuxff2014 (station)

@@ -1,0 +1,8 @@
+Experiment ID: 019
+Name: sancho_webcam_50%BW_office_cable_2014
+Class: realpapersensors
+Time units: ms
+Density (bytes): 153600
+Network: 03-twisted1Gb
+Geoloc: 01-samebuilding
+Software: win32 (robot), linuxff2014 (station)
