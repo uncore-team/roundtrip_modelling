@@ -1,0 +1,8 @@
+Experiment ID: 017
+Name: sancho_webcam_100%C_home_modemRTC_2014
+Class: realpapersensors
+Time units: ms
+Density (bytes): 921600
+Network: 11-RTC56kbps+ISP
+Geoloc: 02-samecity
+Software: win32 (robot), linuxff2014 (station)

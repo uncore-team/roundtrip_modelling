@@ -1,0 +1,8 @@
+Experiment ID: 028
+Name: phpsimul_laser_cable_2014
+Class: realpapersensors
+Time units: ms
+Density (bytes): 8192
+Network: 03-twisted1Gb
+Geoloc: 01-samebuilding
+Software: miniPCwin32 (robot), linuxff2014 (station)

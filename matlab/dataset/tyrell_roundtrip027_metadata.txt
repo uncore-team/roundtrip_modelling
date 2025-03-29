@@ -1,0 +1,8 @@
+Experiment ID: 027
+Name: phpsimul_100%C_local_2014
+Class: realpapersensors
+Time units: ms
+Density (bytes): 921600
+Network: 00-none
+Geoloc: 00-local
+Software: lin32 (robot), linuxff2014 (station)

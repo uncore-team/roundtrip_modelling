@@ -1,0 +1,8 @@
+Experiment ID: 011
+Name: dens1024_pinos_laptopwifirepetidoryfibra_nov2023
+Class: realoct2023
+Time units: ms
+Density (bytes): 1024
+Network: 06-wifirepeaterfiber
+Geoloc: 03-pinos
+Software: linuxphp2023 (robot), win10ff (station)

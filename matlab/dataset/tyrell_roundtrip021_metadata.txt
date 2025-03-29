@@ -1,0 +1,8 @@
+Experiment ID: 021
+Name: surveyor_webcam_5%C_wifi_2014
+Class: realpapersensors
+Time units: ms
+Density (bytes): 230400
+Network: 04-wifiadhoc
+Geoloc: 01-samebuilding
+Software: surveyorandroid (robot), androidGalaxySII (station)

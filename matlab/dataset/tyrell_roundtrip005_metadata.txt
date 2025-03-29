@@ -1,0 +1,8 @@
+Experiment ID: 005
+Name: dens65536_pinos_pcdespacho_oct2023
+Class: realoct2023
+Time units: ms
+Density (bytes): 65536
+Network: 07_2-wififiber
+Geoloc: 03-pinos
+Software: linuxphp2023 (robot), linuxff2023 (station)

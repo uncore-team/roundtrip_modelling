@@ -1,0 +1,8 @@
+Experiment ID: 025
+Name: arduino_analoginput_local_2014
+Class: realpapersensors
+Time units: ms
+Density (bytes): 27
+Network: 02-USB
+Geoloc: 00-local
+Software: arduinoUNOR3 (robot), linuxff2014 (station)

@@ -1,0 +1,8 @@
+Experiment ID: 030
+Name: phpsimul_100%C_plymouth_2014
+Class: realpapersensors
+Time units: ms
+Density (bytes): 921600
+Network: 10-wifi+twisted1Gb+submarine
+Geoloc: 04-plymouth(UK)-malaga
+Software: linuxff2014 (robot), laptoplinuxff2014 (station)

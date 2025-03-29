@@ -1,0 +1,8 @@
+Experiment ID: 029
+Name: phpsimul_100%C_cable_2014
+Class: realpapersensors
+Time units: ms
+Density (bytes): 921600
+Network: 01-cable
+Geoloc: 01-samebuilding
+Software: linuxff2014 (robot), linuxff2014 (station)

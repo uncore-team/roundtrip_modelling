@@ -1,0 +1,8 @@
+Experiment ID: 015
+Name: sancho_webcam_40%BW_home_wifi_2014
+Class: realpapersensors
+Time units: ms
+Density (bytes): 122880
+Network: 08-wifi+ISP
+Geoloc: 02-samecity
+Software: winlaptopsancho (robot), linuxff2014 (station)
