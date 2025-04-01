@@ -91,7 +91,7 @@ static int calculatefunctions(double a, double b, double c, const double *sample
 
 		sum2+=1.0/aux;
 
-		sum3+=logxma-2.0*((logxma-logb)/(xma2invc/b2invc+1.0));
+		sum3+=logxma-2.0*(  log(xma/b)   /*(logxma-logb)*/    /( pow(xma/b,b2invc)   /*xma2invc/b2invc*/+1.0));
 	}
 	sum2=( nn-2.0*b2invc*sum2 )/(bc);
 	sum3=( -nn*(logb+c)+sum3 )/(c*c);
@@ -99,6 +99,8 @@ static int calculatefunctions(double a, double b, double c, const double *sample
 	*res1=sum1;
 	*res2=sum2;
 	*res3=sum3;
+	
+	
     
     #ifdef DEBUG
             mexPrintf("a=%f, b=%f, c=%f, n=%d, f1=%f, f2=%f, f3=%f\n",a,b,c,n,sum1,sum2,sum3);
@@ -219,6 +221,9 @@ static int calculatejacobian(double a, double b, double c, const double *samples
 	jacob[6]=f1c;
 	jacob[7]=f2c;
 	jacob[8]=f3c;
+	
+	
+	
 /*	for (f=0; f<9; f++) jacob[f]=(double)f;*/
 	return(1);
 }

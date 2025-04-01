@@ -7,9 +7,9 @@ function [reject,stat,thresh] = ExponentialGof(x,alpha,beta)
     end
 
     n = length(x);
-    %xsorted = sort(x);
+    xsorted = sort(x);
     mu = 1/beta; % they use beta in the book when actually they want to use the mean 
-    wsorted = (x - alpha) / mu;
+    wsorted = (xsorted - alpha) / mu;
     z = 1 - exp(-wsorted);
     Z = sort(z);
 
@@ -35,8 +35,9 @@ function [reject,stat,thresh] = ExponentialGof(x,alpha,beta)
                % because the distribution of the statistic is not found in
                % the book.
     
-    % test the hypothesis 
-    thresh = 1.321; % D'Agostino table 4.14
+    % test de hypothesis 
+   	thresh = 1.321; % long samples tables 4.14-4.15
+    
     if (stat > thresh) % equivalently, the p-value is smaller than the significant level
         reject=1; % reject
     else

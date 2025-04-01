@@ -4,6 +4,7 @@
 clear;
 close all;
 
+ca = ExperimentCatalog(0);
 [fs,factornames,factorlevels,totlevs] = ExperimentFactorDefs(1);
 numfactors = length(factornames);
 perfdefs = PerformanceDef(1);
@@ -31,7 +32,7 @@ t0 = tic;
 for indexp = 1:numexps
     expe = expcat{indexp};
     fprintf('Experiment %d out of %d: %s(%d,%d)\n',indexp,numexps,expe.name,indstartsc,indendsc);
-    [~,~,data] = ExperimentGet(expe.class,expe.index,1,Inf,0,NaN,0);
+    [~,~,data] = ExperimentGet(ca,expe.class,expe.index,1,Inf,0,NaN,0);
     data = data(indstartsc:indendsc);
     meansc = mean(data);
     for indalg = 1:numalgs
@@ -49,7 +50,7 @@ for indexp = 1:numexps
                                                [],[],perfparms,0);
 
             if ~isempty(perfs)
-                ind = length(perfs);
+                ind = length(perfs); % number of performances that have been measured along the scenario
                 while (ind > 1) && isnan(perfs{ind}.perf.prediction.experr.model)
                     ind = ind - 1;
                 end
@@ -77,7 +78,7 @@ for indexp = 1:numexps
                     % divide errors by 'meansc' to normalize the error and
                     % make it relative: it makes sense to allow for more
                     % error if the roundtrip times are greater                    
-                    meanperfs = zeros(1,8);
+                    meanperfs = zeros(1,9);
                     for in = 1:ind
                         meanperfs = meanperfs + [perfs{in}.perf.prediction.experr.model / meansc, ...
                                                   perfs{in}.perf.prediction.experr.sample / meansc, ...
@@ -86,7 +87,8 @@ for indexp = 1:numexps
                                                   perfs{in}.perf.prediction.stderr.model, ...
                                                   perfs{in}.perf.prediction.modeerr.sample / meansc, ...
                                                   perfs{in}.perf.prediction.modeerr.model / meansc, ...
-                                                  perfs{in}.perf.prediction.modeerr.next / meansc];
+                                                  perfs{in}.perf.prediction.modeerr.next / meansc, ...
+                                                  perfs{in}.perf.computation.time];
                     end
 
                     meanperfs = meanperfs / ind;

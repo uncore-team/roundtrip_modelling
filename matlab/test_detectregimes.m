@@ -3,11 +3,12 @@
 clear;
 close all;
 
+ca = ExperimentCatalog(0);
 maxdatatouse = 800;
 transformintorobotdistance = 0; % 1-> to transform rtts into the distance travelled by a robot that exhibits those rtts and moves with certain speed 
 robotspeed = 0.25; % in m/s
 
-[fdir,fexp,historial] = ExperimentGet('realoct2023',10,...
+[fdir,fexp,historial] = ExperimentGet(ca,'realoct2023',10,...
                                       1,maxdatatouse,...
                                       transformintorobotdistance,robotspeed,...
                                       1);%'realoct2023',6,1);

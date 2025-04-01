@@ -147,7 +147,7 @@ hold on;
 grid;
 meansscs = zeros(1,numexps);
 for f = 1:numexps
-    [~,~,data] = ExperimentGet(expcat{f}.class,expcat{f}.index,1,Inf,0,NaN,0);
+    [~,~,data] = ExperimentGet(expcat,expcat{f}.class,expcat{f}.index,1,Inf,0,NaN,0);
     data = data(indstartsc:indendsc);
     ts = cumsum(data);
     meansscs(f) = mean(data);
