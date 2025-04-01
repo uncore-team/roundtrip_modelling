@@ -20,7 +20,7 @@ function [E,V]=LoglogisticToEV(a,b,c)
     	E = a+b*c*gammac*gamma1_c; % formulas from the hidrology paper
     end
     if (c < 0.5)
-    	V = b^2*(2*c*gamma2c*gamma1_2c-(c*gammac*gamma1_c)^2);
+    	V = b*b*(2*c*gamma2c*gamma1_2c-(c*gammac*gamma1_c)^2);
     end
 	
 	% formulas for wikipedia, less accurate when c is close to 0.5, since in that

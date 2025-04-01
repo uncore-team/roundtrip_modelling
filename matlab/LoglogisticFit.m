@@ -8,7 +8,7 @@ function [a, b, c, exitflag] = LoglogisticFit(x)
 
 	minlen=10;
 	tole=1e-9;
-	optimalg='trust-region-reflective';%'trust-region-reflective'; % 'trust-region-reflective' 'levenberg-marquardt'
+	optimalg='trust-region-reflective'; % 'trust-region-reflective' 'levenberg-marquardt'
 	minc=0.05; % 0.05 has been used in the c++ hub because it produces almost gaussians if c below that
                % and because a too small value of minc produces overflows
                % in the calculations of the functions to be optimized

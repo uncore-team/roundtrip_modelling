@@ -21,6 +21,7 @@
 clear;
 close all;
 
+ca = ExperimentCatalog(0);
 experimentbatch = 'realoct2023'; %'realoct2023'; %'sim'; % 'realoct2023' % 'realpapersensors'
 experimentindex = 9;
 futureismodel = 1; % 0-> future is raw sample; 1-> future is model from raw sample
@@ -28,7 +29,7 @@ experimentrange = [1,500];%length(historial)];
 transformintorobotdistance = 0; % 1-> to transform rtts into the distance travelled by a robot that exhibits those rtts and moves with certain speed 
 robotspeed = 0.25; % in m/s
 
-[fdir,fexp,historial] = ExperimentGet(experimentbatch,experimentindex,...
+[fdir,fexp,historial] = ExperimentGet(ca,experimentbatch,experimentindex,...
                                       experimentrange(1),experimentrange(2),...
                                       transformintorobotdistance,robotspeed,...
                                       1);

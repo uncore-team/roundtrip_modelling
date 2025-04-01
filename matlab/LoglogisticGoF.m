@@ -57,16 +57,6 @@ function [reject,stat,thresh]=LoglogisticGoF(x,a,b,c,flagprevmodel)
 %			other particular decreasing profile in STAT.
 % FLAGPREVMODEL -> 1 if the parameters do not come from sample; 0 if they have
 %                  been calculated from the same sample.
-
-    if nargin == 4
-        flagprevmodel = 0;
-    end
-
-    if flagprevmodel
-        thresh = 2.492; % for the case that parameters do not come from sample; 0.05, p. 105, table 4.2, right tail
-    else
-        thresh = 0.660; % threshold for the case of parameters coming from sample; 0.05 significance level; page 157, table 4.22, case 3
-    end 
     
     [nrows,ncols] = size(x);
     if (nrows~=1) && (ncols~=1)
@@ -76,26 +66,25 @@ function [reject,stat,thresh]=LoglogisticGoF(x,a,b,c,flagprevmodel)
         x=x.';
     end
     n = length(x);
-    % xLL = sort(x);
-    % if (xLL(1) <= a)
-    if (min(x) <= a)
+    xLL = sort(x); % ordered needed later on
+    if (xLL(1) <= a)
     	reject = 1; % cannot accept a distribution if some value falls below its minimum
     	stat = Inf;
     	return;
     end
 
-    % transform sample to LL2 (0 offset) and model (a,b,c) into Matlab model (mu,sigma)
-    % xL = log(xLL-a);
-    xL = log(x-a);
-    mu = log(b); % alpha in the book
-    s = c; % beta in the book
+    % ---- transform sample to LL2 (0 offset) and model (a,b,c) into Matlab model (mu,sigma)
+    xL = log(xLL - a); % since XLL is ordered and log does not change the order, xL is ordered
+    mu = log(b); % converting from a,b,c to D'Agostino (alpha in the book), which uses the same as Matlab
+    s = c; % converting from a,b,c to D'Agostino (beta in the book), which uses the same as Matlab
 
-    % calculate a new random variable Z (p. 160) that has uniform distribution in [0,1]
+    % ---- calculate a new random variable Z (p. 160) that has uniform distribution in [0,1]
     % if the theoretical model (mu,sigma) is true (p. 101)
+    % NOTE: Here, xL must be ordered 
     Z = 1./(1 + exp(-(xL-mu)./s)); % cdf formula for logistic
-    Z = sort(Z);    
+    Z = sort(Z); % this may be superfluous, but it does not harm
 
-    % calculate statistic: A2 for case 3 (both parameters were deduced from
+    % ---- calculate statistic: A2 for case 3 (both parameters were deduced from
     % the same sample). This statistic measures the squared distance
     % between experimental and theoretical Zs, and, indirectly, between 
     % theoretical and experimental Xs (p. 100)
@@ -118,7 +107,14 @@ function [reject,stat,thresh]=LoglogisticGoF(x,a,b,c,flagprevmodel)
                % because the distribution of the statistic is not found in
                % the book.
     
-    % test the hypothesis 
+    % ---- test the hypothesis 
+    
+    if flagprevmodel
+        thresh = 2.492; % for the case that parameters do not come from sample; 0.05, p. 105, table 4.2, right tail
+    else
+        thresh = 0.660; % threshold for the case of parameters coming from sample; 0.05 significance level; page 157, table 4.22, case 3
+    end 
+    
     if (stat > thresh) % equivalently, the p-value is smaller than the significant level
         reject=1; % reject
     else

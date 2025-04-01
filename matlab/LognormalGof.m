@@ -14,22 +14,15 @@ function [reject,stat,thresh,pvalue] = LognormalGof(x,offset,mu,sigma)
 
 % Taken from https://es.mathworks.com/matlabcentral/fileexchange/60147-normality-test-package
 
-    % y = sort(log((x(:).') - offset)); % transform from lognormal to normal with expectation MU and std SIGMA
-    % ui = normcdf(y,mu,sigma); % if taking mu,sigma from the data:  ui=normcdf(zscore(y),0,1); % zscore embed de mean and sigma estimated from the data
-    % oneminusui = sort(1-ui);
-    % i = 1:n;
-    % lastt = (2*i-1).*(log(ui)+log(oneminusui));
-
-    y = log(x - offset); % alternative (it only requires a sort operation)
-    ui = normcdf(y, mu, sigma);
-    Z = sort(ui);
+    y = sort(log((x(:).') - offset)); % transform from lognormal to normal with expectation MU and std SIGMA
+    ui = normcdf(y,mu,sigma); % if taking mu,sigma from the data:  ui=normcdf(zscore(y),0,1); % zscore embed the mean and sigma estimated from the data
+    oneminusui = sort(1-ui);
     i = 1:n;
-    lastt = (2*i - 1).*log(Z) + (2*n + 1 - 2*i).*log(1 - Z); % page 101, bottom formula
-
+    lastt = (2*i-1).*(log(ui)+log(oneminusui));
     asquare = -n-(1/n)*sum(lastt);
     adj = 1+0.75/n+2.25/(n^2);
     AD = asquare*adj;
-
+     
     if AD<=0.2
         pvalue=1-exp(-13.436+101.14*AD-223.73*AD^2);
     elseif AD<=0.34
@@ -51,32 +44,28 @@ function [reject,stat,thresh,pvalue] = LognormalGof(x,offset,mu,sigma)
     end
 
 % Based on D'Agostino p. 122: parameters unknown.
-    % xord = (x-offset);
-    % logxord = log(xord); % still ordered, now normal
-    % %m = mean(x);
-    % w = (logxord - mu) / sigma;
-    % Z = normcdf(w,0,1);
-    % Z = sort(Z);
-    % i = 1:n;
-    % 
-    % % calculate statistic: A2 for case 3 (both parameters were deduced from
-    % % the same sample). This statistic measures the squared distance
-    % % between experimental and theoretical Zs, and, indirectly, between 
-    % % theoretical and experimental Xs (p. 100)
-    % sumatoria = sum((2*i-1).*log(Z)+(2*n+1-2*i).*log(1-Z)); % page 101, bottom formula
-    % A2 = -n - (1/n)* sumatoria;
-    % % do the following since parameters come from sample (D'Agostino table 4.7)
-    % A2 = A2*(1 + 0.75/n + 2.25/n^2); 
-    % stat = A2;
-    % 
-    % % test the hypothesis 
-    % pvalue = 0;
-    % % thresh = 2.492; % table 4.2 D'Agostino MAL
-    % thresh = 0.752; % table 4.2 D'Agostino MAL
-    % if (stat > thresh) 
-    %     reject=1; % reject
-    % else
-    %     reject=0; % cannot reject
-    % end 
+%     xord = sort(x);     
+%     logxord = log(xord); % still ordered, now normal
+%     m = mean(x);
+%     w = (logxord - mu) / sigma;
+%     Z = normcdf(w,0,1);
+% 
+%     % calculate statistic: A2 for case 3 (both parameters were deduced from
+%     % the same sample). This statistic measures the squared distance
+%     % between experimental and theoretical Zs, and, indirectly, between 
+%     % theoretical and experimental Xs (p. 100)
+%     sumatoria = sum(([1:n]*2-1).*log(Z)+(2*n+1-2*[1:n]).*log(1-Z)); % page 101, bottom formula
+%     A2 = -n - (1/n)* sumatoria;
+%     % do the following since parameters come from sample (D'Agostino table 4.7)
+%     A2 = A2*(1 + 0.75/n + 2.25/n^2); 
+%     stat = A2;
+% 
+%     % test the hypothesis 
+%     thresh = 2.492; % table 4.2 D'Agostino
+%     if (stat > thresh) 
+%         reject=1; % reject
+%     else
+%         reject=0; % cannot reject
+%     end 
 
 end
