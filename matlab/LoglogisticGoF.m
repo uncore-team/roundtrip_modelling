@@ -57,23 +57,29 @@ function [reject,stat,thresh]=LoglogisticGoF(x,a,b,c,flagprevmodel)
 %			other particular decreasing profile in STAT.
 % FLAGPREVMODEL -> 1 if the parameters do not come from sample; 0 if they have
 %                  been calculated from the same sample.
-    
-    [nrows,ncols] = size(x);
-    if (nrows~=1) && (ncols~=1)
-        error('Invalid sample');
+
+    % consider by default that alpha and beta have been estimated from
+    % samples.
+    if nargin == 4
+        flagprevmodel = 0;
     end
-    if (nrows ~= 1) % assure X is a row vector
-        x=x.';
+
+    if (a < 0) 
+        error('Invalid loglogistic distr.');
     end
-    n = length(x);
+
+    n = numel(x);
+    x = reshape(x,1,n); % force X is a row vector
+
+    % ---- transform sample to LL2 (0 offset) and model (a,b,c) into Matlab model (mu,sigma)
     xLL = sort(x); % ordered needed later on
     if (xLL(1) <= a)
     	reject = 1; % cannot accept a distribution if some value falls below its minimum
     	stat = Inf;
+
+    	thresh = NaN;
     	return;
     end
-
-    % ---- transform sample to LL2 (0 offset) and model (a,b,c) into Matlab model (mu,sigma)
     xL = log(xLL - a); % since XLL is ordered and log does not change the order, xL is ordered
     mu = log(b); % converting from a,b,c to D'Agostino (alpha in the book), which uses the same as Matlab
     s = c; % converting from a,b,c to D'Agostino (beta in the book), which uses the same as Matlab
@@ -108,13 +114,11 @@ function [reject,stat,thresh]=LoglogisticGoF(x,a,b,c,flagprevmodel)
                % the book.
     
     % ---- test the hypothesis 
-    
     if flagprevmodel
         thresh = 2.492; % for the case that parameters do not come from sample; 0.05, p. 105, table 4.2, right tail
     else
         thresh = 0.660; % threshold for the case of parameters coming from sample; 0.05 significance level; page 157, table 4.22, case 3
     end 
-    
     if (stat > thresh) % equivalently, the p-value is smaller than the significant level
         reject=1; % reject
     else
