@@ -48,7 +48,7 @@ public:
      *         - GoF: {test statistic, critical value}
      * @throws invalid_argument if b <= 0 or c <= 0 or samples.size() < 10
      */
-    tuple<bool, GoF> gof(const ModelParams& params, const vector<double>& samples) override;  // bool previous_model
+    tuple<bool, GoF> gof(const ModelParams& params, const vector<double>& samples, bool prev_model = false) override;  // bool previous_model
     
     /**
      * @brief Calculates the CDF for a single value from the log-logistic distribution

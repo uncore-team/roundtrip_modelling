@@ -524,59 +524,62 @@ Model LogLogisticEstimator::fit(const vector<double>& samples) {
  * - If any sample ≤ location parameter a
  * - If test statistic > threshold (0.660 for parameters from same sample)
  */
-tuple<bool, GoF> LogLogisticEstimator::gof(const ModelParams& params, const vector<double>& samples) {
+tuple<bool, GoF> LogLogisticEstimator::gof(const ModelParams& params, const vector<double>& samples, bool prev_model) {
 
+    // Parameters
     const double a = params.a;
     const double b = params.b;
     const double c = params.c;
     const double mu = log(b); // alpha in the book
-    const double thresh = 0.660; // threshold for the case of parameters coming from sample; 0.05 significance level; page 157, table 4.22, case 3
-    const size_t len = samples.size();
-    const double min = _min(samples);
 
-    // sanity check
-    if (min <= a) {
-        return {true, {Inf, thresh}}; // cannot accept a distribution if some value falls below its minimum
+    // Parameter validation
+    if (a < 0.0) {
+        throw invalid_argument("Invalid LogLogistic distr.: a < 0");
+    }
+    if (b <= 0.0 || c <= 0.0) {
+        throw invalid_argument("Invalid LogLogistic distr.: b <= 0 or c <= 0");
     }
 
-    // transform sample to LL2 (0 offset) and model (a,b,c) into C++ model (mu,sigma)
+    const double min = _min(samples);
+    if (min <= a) {
+        return {true, {Inf, NaN}}; // cannot accept a distribution if some value falls below its minimum
+    }
+
+    // Transform data to uniform using loglogistic CDF
+    const size_t len = samples.size();
     vector<double> data(len);
-    transform(
-        samples.begin(), samples.end(),
-        data.begin(),
-        [a, c, mu](double sample) { return 1.0 / (1.0 + exp(-(log(sample - a) - mu) / c)); }
-    );
+    #ifdef _OPENMP
+        #pragma omp parallel for if(len > OMP_THRESH)
+    #endif
+    for (size_t i = 0; i < len; ++i) {
+        data[i] = 1.0 / (1.0 + exp(-(log(samples[i] - a) - mu) / c));
+    }
     sort(data.begin(), data.end());
 
-    // calculate statistic: A2 for case 3 (both parameters were deduced from
-    // the same sample). This statistic measures the squared distance
-    // between experimental and theoretical Zs, and, indirectly, between 
-    // theoretical and experimental Xs (p. 100)
+    // Calculate Anderson-Darling statistic (A²) This statistic measures the 
+    // squared distance between experimental and theoretical Zs, and, indirectly,
+    // between theoretical and experimental Xs (p. 100)
     const double lenf = static_cast<double>(len);
     double accum = 0.0;
     #ifdef _OPENMP
         #pragma omp parallel for reduction(+:accum) if(len > OMP_THRESH)
-    #endif    
+    #endif
     for (size_t i = 0; i < len; ++i) {
         accum += (2*(i + 1) - 1) * log(data[i]) + (2*lenf + 1 - 2*(i + 1))*log(1 - data[i]);
     }
     double A2 = -lenf - accum/lenf;
 
-    // Apply correction factors
-    A2 *= (1.0 + 0.25/lenf); // correction needed because both parameters are deduced from the same sample, table 4.22 case 3
-                            // A2 follows certain right-tailed distribution. We can set in
-                            // that distribution a threshold value (in its support)
-                            // corresponding to a given significance level. 
-                            // Then, if the value calculated for the statistic falls 
-                            // above that threshold, the hypothesis should be rejected
-                            // (this is easier as the significance level grows).
-                            // The p-value is the probability of the statistic distribution to
-                            // produce a value of the statistic equal to or greater than the
-                            // calculated one. The p-value will shrink as more strongly rejected
-                            // is the null hypothesis. We do not calculate it here
-                            // because the distribution of the statistic is not found in
-                            // the book.
+    double thresh;
+    if (prev_model) {
+        thresh = 2.492; // threshold for the case that parameters do not come from sample (case 0)
+                        // D'Agostino & Stephens (1986), 0.05 significance, p. 105, table 4.2, right tail
+    }
+    else {
+        thresh = 0.660; // threshold for the case of parameters coming from sample (case 3)
+                        // D'Agostino & Stephens (1986), 0.05 significance level; page 157, table 4.22, right tail
 
+        A2 *= (1.0 + 0.25/lenf); // apply correction factors
+    }
     return {A2 > thresh, {A2, thresh}};
 }
 

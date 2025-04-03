@@ -158,7 +158,7 @@ int OnlineRANSAC::update(double sample) {
                 bool preserved = false;
                 if (model.defined) {
                     Estimator::Ptr& estimator = m_model_estimators[model.type];
-                    auto [reject, gof] = estimator->gof(model.params, samples); // assess existing model
+                    auto [reject, gof] = estimator->gof(model.params, samples, true); // assess existing model
                     if (!reject) {
                         model.gof = gof; // update gof if state is preserved
                         exitbranch = 3;
@@ -182,7 +182,7 @@ int OnlineRANSAC::update(double sample) {
                 } else {
                     if (model.defined) {
                         Estimator::Ptr& estimator = m_model_estimators[model.type];
-                        auto [reject, gof] = estimator->gof(model.params, samples); // assess existing model
+                        auto [reject, gof] = estimator->gof(model.params, samples, true); // assess existing model
                         if (!reject) {
                             model.gof = gof; // update gof if state is updated
                             exitbranch = 3;

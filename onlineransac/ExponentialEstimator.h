@@ -49,7 +49,7 @@ public:
      *         - GoF: {test statistic, critical value}
      * @throws invalid_argument if beta <= 0 or samples.size() < 10
      */
-    tuple<bool, GoF> gof(const ModelParams& params, const vector<double>& samples) override;
+    tuple<bool, GoF> gof(const ModelParams& params, const vector<double>& samples, bool prev_model = false) override;
 
     /**
      * @brief Calculates the cumulative distribution function (CDF) for a single value.
