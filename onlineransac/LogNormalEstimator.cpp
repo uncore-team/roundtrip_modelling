@@ -225,68 +225,64 @@ Model LogNormalEstimator::fit(const vector<double>& samples) {
  *         - sigma <= 0
  *         - samples.size() < m_min_len
  */
-tuple<bool, GoF> LogNormalEstimator::gof(const ModelParams& params, const vector<double>& samples) {
+tuple<bool, GoF> LogNormalEstimator::gof(const ModelParams& params, const vector<double>& samples, bool prev_model) {
 
     // Parameters
     const double gamma = params.gamma;
     const double mu = params.mu;
     const double sigma = params.sigma;
 
-    // const double thresh = 0.752;  // D'Agostino & Stephens (1986), p. 123, Table 4.7
-    const size_t len = samples.size();
-    const double min = _min(samples);
-
     // Parameter validation
-    if (sigma <= 0) {
-        throw invalid_argument("Invalid sigma for lognormal distribution.");
+    if (gamma < 0.0) {
+        throw invalid_argument("Invalid LogNormal distr.: gamma < 0");
     }
-    if (len < m_min_len) {
-        throw invalid_argument("Number of samples is not enough or is zero.");
+    if (sigma <= 0.0) {
+        throw invalid_argument("Invalid LogNormal distr.: sigma <= 0");
     }
+
+    const double min = _min(samples);
     if (min < gamma) {
-        return {true, {Inf, NaN}}; // Model cannot fit these data
+        return {true, {Inf, NaN}}; // cannot accept a distribution if some value falls below its minimum
     }
 
     // Transform to uniform using lognormal CDF
+    const size_t len = samples.size();
     vector<double> data(len);
     const double sqrt2 = sqrt(2.0);
-    transform(samples.begin(), samples.end(), data.begin(), 
-        [gamma, mu, sigma, sqrt2](double sample) {
-            const double w = (log(sample - gamma) - mu)/sigma;
-            return 0.5*erfc(-w/sqrt2);
-        }
-    );
+    #ifdef _OPENMP
+        #pragma omp parallel for if(len > OMP_THRESH)
+    #endif
+    for (size_t i = 0; i < len; ++i) {
+        const double w = (log(samples[i] - gamma) - mu)/sigma;
+        data[i] = 0.5*erfc(-w/sqrt2);
+    }
     sort(data.begin(), data.end());
 
-    // Calculate Anderson-Darling statistic (A²)
+    // Calculate Anderson-Darling statistic (A²) This statistic measures the 
+    // squared distance between experimental and theoretical Zs, and, indirectly,
+    // between theoretical and experimental Xs (p. 100)
     const double lenf = static_cast<double>(len);
     double accum = 0.0;
     #ifdef _OPENMP
         #pragma omp parallel for reduction(+:accum) if(len > OMP_THRESH)
-    #endif     
+    #endif
     for (size_t i = 0; i < len; ++i) {
         accum += (2*(i + 1) - 1) * log(data[i]) + (2*lenf + 1 - 2*(i + 1))*log(1 - data[i]);
     }
     double A2 = -lenf - accum/lenf;
 
-    // Apply small sample correction
-    A2 *= (1.0 + 0.75/lenf + 2.25/(lenf*lenf));
+    double thresh;
+    if (prev_model) {
+        thresh = 2.492; // threshold for the case that parameters do not come from sample (n >= 5)
+                        // D'Agostino & Stephens (1986), 0.05 significance, p. 105, table 4.2, right tail
+    }
+    else {
+        thresh = 0.752;  // threshold for the case of parameters coming from sample (case 3)
+                         // D'Agostino & Stephens (1986), 0.05 significance, p. 123, table 4.7, right tail
 
-    // return {A2 > thresh, {A2, thresh}};
-    // D'Agostino & Stephens (1986): Page 127, Table 4.9, Case 3
-    double pvalue;
-    if (A2 <= 0.2)
-        pvalue = 1 - exp(-13.436 + 101.14*A2 - 223.73*A2*A2);
-    else if (A2 <= 0.34)
-        pvalue = 1 - exp(-8.318 + 42.796*A2 - 59.938*A2*A2);
-    else if (A2 <= 0.6)
-        pvalue = exp(0.9177 - 4.279*A2 - 1.38*A2*A2);
-    else if (A2 <= 153.467)
-        pvalue = exp(1.2937*A2 - 5.709*A2 + 0.0186*A2*A2);
-    else
-        pvalue = 0;
-
-    return {pvalue <= 0.05, {A2, pvalue}};
+        A2 *= (1.0 + 0.75/lenf + 2.25/(lenf*lenf)); // apply correction factors
+    }
+    return {A2 > thresh, {A2, thresh}};
 }
 
 /**

@@ -8,6 +8,7 @@
  * 
  * Based on D'Agostino & Stephens (1986), Chapter 4.
  */
+#include <interpolation.h>
 #ifdef _OPENMP
     #include <omp.h>
     //#pragma message("Compiling ExponentialEstimator with OpenMP support.")
@@ -17,6 +18,7 @@
 #include "ExponentialEstimator.h"
 
 using namespace std;
+using namespace alglib;
 
 /**
  * Constructor for ExponentialEstimator class.
@@ -57,15 +59,34 @@ Model ExponentialEstimator::fit(const vector<double>& samples) {
         throw invalid_argument("Cannot fit anything with less than 10 values");
     }
 
-    // Calculate initial estimates using method of moments
+    // PROBLEM: This method produces negative alpha in a high proportion of
+    // the estimations
+    // const double min = _min(samples);
+    // const double mean = _mean(samples);
+    // const double mu = len*(mean - min)/static_cast<double>(len - 1); // Bias-corrected mean estimate
+
+    // // Set distribution parameters
+    // ModelParams params;
+    // params.alpha = min - mu/static_cast<double>(len);  // Location parameter estimate
+    // params.beta = 1/mu;  // Rate parameter (inverse of mean)
+
+    // Calculate parameters using MLE estimation that forces 
+    // alpha to be positive and beta to be finite and positive
     const double min = _min(samples);
-    const double mean = _mean(samples);
-    const double mu = len * (mean - min) / static_cast<double>(len - 1); // Bias-corrected mean estimate
+
+    double accum = 0.0;
+    #ifdef _OPENMP
+        #pragma omp parallel for reduction(+:accum) if(len > OMP_THRESH)
+    #endif    
+    for (const double sample: samples) {
+        accum += (sample - min);
+    }
+    const double mean = accum/static_cast<double>(len);
 
     // Set distribution parameters
     ModelParams params;
-    params.alpha = min - mu / static_cast<double>(len);  // Location parameter estimate
-    params.beta = 1 / mu;  // Rate parameter (inverse of mean)
+    params.alpha = min;  // Location parameter estimate
+    params.beta = 1/mean;  // Rate parameter (inverse of mean)
 
     // Perform goodness of fit test
     auto [reject, gof_] = gof(params, samples);
@@ -97,54 +118,72 @@ Model ExponentialEstimator::fit(const vector<double>& samples) {
  *         - beta <= 0
  *         - samples.size() < m_min_len
  */
-tuple<bool, GoF> ExponentialEstimator::gof(const ModelParams& params, const vector<double>& samples) {
+tuple<bool, GoF> ExponentialEstimator::gof(const ModelParams& params, const vector<double>& samples, bool prev_model) {
 
     // Parameters
     const double alpha = params.alpha;   // Location parameter
     const double beta = params.beta;     // Rate parameter
-    const double mu = 1/params.beta;   // Convert rate to mean for calculations
-
-    const double thresh = 1.321;         // Critical value from D'Agostino table 4.14
-    const size_t len = samples.size();
-    const double min = _min(samples);
 
     // Validate parameters
+    if (alpha < 0.0) {
+        throw invalid_argument("Invalid Exponential distr.: alpha < 0");
+    }
     if (beta <= 0.0) {
-        throw invalid_argument("Invalid beta for exponential distribution.");
+        throw invalid_argument("Invalid Exponential distr.: beta <= 0");
     }
-    if (len < m_min_len) {
-        throw invalid_argument("Number of samples is not enough or is zero.");
-    }
+
+    const double min = _min(samples);
     if (min < alpha) {
-        return {true, {Inf, NaN}}; // that model cannot assess these data
+        return {true, {Inf, NaN}}; // cannot accept a distribution if some value falls below its minimum
     }
 
     // Transform data to uniform using exponential CDF
+    const size_t len = samples.size();
     vector<double> data(len);
-    transform(samples.begin(), samples.end(), data.begin(),
-        [alpha, mu](double sample) { 
-            return 1.0 - exp(-(sample - alpha) / mu); 
-        }
-    );
+    #ifdef _OPENMP
+        #pragma omp parallel for if(len > OMP_THRESH)
+    #endif
+    for (size_t i = 0; i < len; ++i) {
+        data[i] = 1.0 - exp(-beta*(samples[i] - alpha));
+    }    
     sort(data.begin(), data.end());
 
-    // calculate statistic: A2 for case 3 (both parameters were deduced from
-    // the same sample). This statistic measures the squared distance
-    // between experimental and theoretical Zs, and, indirectly, between 
-    // theoretical and experimental Xs (p. 100)
+    // Calculate Anderson-Darling statistic (A²) This statistic measures the 
+    // squared distance between experimental and theoretical Zs, and, indirectly,
+    // between theoretical and experimental Xs (p. 100)
     const double lenf = static_cast<double>(len);
     double accum = 0.0;
     #ifdef _OPENMP
         #pragma omp parallel for reduction(+:accum) if(len > OMP_THRESH)
-    #endif    
+    #endif
     for (size_t i = 0; i < len; ++i) {
         accum += (2.0*(i + 1) - 1.0)*log(data[i]) + (2.0*lenf + 1.0 - 2.0*(i + 1))*log(1.0 - data[i]);
     }
     double A2 = -lenf - accum/lenf;
 
     // Apply correction factors
-    A2 *= (1.0 + 5.4/lenf - 11.0/lenf/lenf); // Modification D'Agostino & Stephens (1986), p. 138
-
+    double thresh;
+    if (prev_model) {
+    	thresh = 2.492; // threshold for the case that parameters do not come from sample (n >= 5)
+                        // D'Agostino & Stephens (1986), 0.05 significance level, p. 105, table 4.2, right tail
+    }
+    else {
+        if (len > 100) {
+            thresh = 1.321;  // threshold for the case of parameters coming from sample (case 3)
+                             // D'Agostino & Stephens (1986), 0.05 significance level, p. 141, table 4.14, right tail
+        }
+        else {
+            real_1d_array ns = "[5, 10, 15, 20, 25, 50, 100]"; // lengths listed in D'Agostino table 4.15
+            real_1d_array ts = "[0.725, 0.920, 1.009, 1.062, 1.097, 1.197, 1.250]";
+    
+            spline1dinterpolant s;
+            spline1dbuildcatmullrom(ns, ts, s); // best interpolation since points are non-linear
+                                                // do not include the point at > 100 since it is
+                                                // too far and distorts the spline strongly
+            thresh = spline1dcalc(s, lenf);
+        }
+        A2 *= (1.0 + 5.4/lenf - 11.0/(lenf*lenf)); // apply correction factors
+    }
     return {A2 > thresh, {A2, thresh}};
 }
 
@@ -199,7 +238,7 @@ double ExponentialEstimator::cdf(const ModelParams& params, const double& sample
 vector<double> ExponentialEstimator::cdf(const ModelParams& params, const vector<double>& samples) {
 
     // Parameters
-    //const double alpha = params.alpha;
+    const double alpha = params.alpha;
     const double beta = params.beta;
 
     if (beta <= 0) {
@@ -214,7 +253,8 @@ vector<double> ExponentialEstimator::cdf(const ModelParams& params, const vector
         #pragma omp parallel for if(len > OMP_THRESH)
     #endif
     for (size_t i = 0; i < len; ++i) {
-        cdf[i] = this->cdf(params, samples[i]);
+        const double z = samples[i] - alpha;
+        cdf[i] = (z <= 0.0) ? 0.0 : 1.0 - exp(-beta*z);
     }
     return cdf;
 }
@@ -269,7 +309,7 @@ double ExponentialEstimator::pdf(const ModelParams& params, const double& sample
 vector<double> ExponentialEstimator::pdf(const ModelParams& params, const vector<double>& samples) {
 
     // Parameters
-    //const double alpha = params.alpha;
+    const double alpha = params.alpha;
     const double beta = params.beta;
 
     if (beta <= 0) {
@@ -284,7 +324,8 @@ vector<double> ExponentialEstimator::pdf(const ModelParams& params, const vector
         #pragma omp parallel for if(len > OMP_THRESH)
     #endif
     for (size_t i = 0; i < len; ++i) {
-        pdf[i] = this->pdf(params, samples[i]);
+        const double z = samples[i] - alpha;
+        pdf[i] = (z < 0.0) ? 0.0 : beta*exp(-beta*z);
     }
     return pdf;
 }

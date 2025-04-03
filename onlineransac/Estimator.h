@@ -76,7 +76,7 @@ public:
      *         - bool: true if fit should be rejected
      *         - GoF: {test statistic, critical value}
      */
-    virtual tuple<bool, GoF> gof(const ModelParams& params, const vector<double>& samples) = 0;
+    virtual tuple<bool, GoF> gof(const ModelParams& params, const vector<double>& samples, bool prev_model = false) = 0;
 
     /**
      * @brief Calculates the cumulative distribution function (CDF) for a single value

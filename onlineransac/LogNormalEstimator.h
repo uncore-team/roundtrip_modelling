@@ -48,7 +48,7 @@ public:
      * - Compares against critical values for log-normal distribution
      * - Requires minimum sample size for validity
      */
-    tuple<bool, GoF> gof(const ModelParams& params, const vector<double>& samples) override;
+    tuple<bool, GoF> gof(const ModelParams& params, const vector<double>& samples, bool prev_model = false) override;
 
     /**
      * @brief Calculates the cumulative distribution function (CDF) for a single value
