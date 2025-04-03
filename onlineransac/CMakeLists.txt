@@ -95,7 +95,7 @@ add_executable(${PROJECT_NAME}
 )
 
 # Include directories
-target_include_directories(${PROJECT_NAME} PRIVATE 
+target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/gtest/include
     ${CMAKE_CURRENT_SOURCE_DIR}/alglib
@@ -116,7 +116,7 @@ if(MINGW)
 endif()
 
 # Link libraries (static and dynamic)
-target_link_libraries(${PROJECT_NAME} PRIVATE 
+target_link_libraries(${PROJECT_NAME} PRIVATE
     # Static
     GTest
     ALGLIB
@@ -137,13 +137,13 @@ set(TEST_SOURCES
 )
 
 # Test executable
-add_executable(${PROJECT_NAME}_tests 
+add_executable(${PROJECT_NAME}_tests
     ${TEST_SOURCES}
     ${SOURCES}
 )
 
 # Include directories for tests
-target_include_directories(${PROJECT_NAME}_tests PRIVATE 
+target_include_directories(${PROJECT_NAME}_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/gtest/include
     ${CMAKE_CURRENT_SOURCE_DIR}/alglib
@@ -163,7 +163,7 @@ if(MINGW)
 endif()
 
 # Link libraries for tests (static and dynamic)
-target_link_libraries(${PROJECT_NAME}_tests PRIVATE 
+target_link_libraries(${PROJECT_NAME}_tests PRIVATE
     # Static
     GTest
     ALGLIB

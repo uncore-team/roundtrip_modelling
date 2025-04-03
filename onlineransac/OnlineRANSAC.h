@@ -11,13 +11,13 @@ using namespace std;
 
 /**
  * @brief Class for online outlier detection using RANSAC algorithm.
- * 
+ *
  * Implements a real-time adaptation of RANSAC with:
  * - Multiple distribution model support
  * - Flexible model preservation strategies
  * - Configurable sample window management
  * - Dynamic model updating and assessment
- * 
+ *
  * The class maintains state information about:
  * - Current model and its parameters
  * - Sample window and its management
@@ -27,7 +27,7 @@ class OnlineRANSAC {
 public:
     /**
      * @brief Constructor initializing RANSAC parameters
-     * 
+     *
      * @param min_len Minimum samples needed to start modeling
      * @param max_len Maximum samples to maintain in window
      * @param model_preserving Preservation strategy (0-2)
@@ -35,8 +35,8 @@ public:
      * @param data_preserving Data retention strategy (0-1)
      * @param model_types Vector of distributions to try fitting
      */
-    OnlineRANSAC(unsigned min_len, unsigned max_len, 
-                 unsigned model_preserving, unsigned sample_sliding, 
+    OnlineRANSAC(unsigned min_len, unsigned max_len,
+                 unsigned model_preserving, unsigned sample_sliding,
                  unsigned data_preserving, vector<ModelType> model_types);
 
     /**
@@ -59,11 +59,11 @@ public:
 
     /**
      * @brief Prints the current fitted model parameters to standard output
-     * 
+     *
      * Displays distribution-specific parameters and goodness of fit statistics
      * in a human-readable format. Each derived class implements its own
      * formatting specific to its distribution type.
-     */    
+     */
     void print_model();
 
 private:

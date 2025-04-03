@@ -5,7 +5,7 @@
 
 using namespace std;
 
-#define MIN(a,b) ((a) < (b) ? a : b) 
+#define MIN(a,b) ((a) < (b) ? a : b)
 #define MAX(a,b) ((a) > (b) ? a : b)
 
 static const double eps = numeric_limits<double>::epsilon();
@@ -32,7 +32,7 @@ struct ModelParams {
     double mu = NaN;     // Mean
     double sigma = NaN;  // Standard deviation
     // Exponential model
-    double alpha = NaN;  // location of the distribution 
+    double alpha = NaN;  // location of the distribution
     double beta = NaN;   // 1/beta mean of the distribution
 };
 //typedef vector<double> ModelParams; TODO (a vector instead of the previous struct)

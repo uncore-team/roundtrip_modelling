@@ -68,7 +68,7 @@ class PythonEnvironment { // varevalo@uma.es
                 PyConfig_Clear(&config);
                 return false;
             }
-    
+
             // Set Python path to include site-packages
             wstring site_packages = L"C:/Program Files/Python312/Lib/site-packages";
             status = PyConfig_SetString(&config, &config.pythonpath_env, site_packages.c_str());
@@ -77,7 +77,7 @@ class PythonEnvironment { // varevalo@uma.es
                 PyConfig_Clear(&config);
                 return false;
             }
-    
+
             // Initialize Python
             status = Py_InitializeFromConfig(&config);
             if (PyStatus_Exception(status)) {
@@ -98,7 +98,7 @@ class PythonEnvironment { // varevalo@uma.es
 
             return true;
         }
-    
+
         static void finalize() {
             if (Py_IsInitialized()) {
                 Py_Finalize();
@@ -389,7 +389,7 @@ private:
         s_python_function_colorbar = PyObject_GetAttrString(pymod, "colorbar");
         s_python_function_subplots_adjust = safe_import(pymod,"subplots_adjust");
         s_python_function_rcparams = PyObject_GetAttrString(pymod, "rcParams");
-	s_python_function_spy = PyObject_GetAttrString(pymod, "spy");
+    s_python_function_spy = PyObject_GetAttrString(pymod, "spy");
 #ifndef WITHOUT_NUMPY
         s_python_function_imshow = safe_import(pymod, "imshow");
 #endif
@@ -1175,7 +1175,7 @@ template<typename NumericX, typename NumericY, typename NumericColors>
 
         return res;
     }
-    
+
 
 template<typename NumericX, typename NumericY, typename NumericZ>
 bool scatter(const std::vector<NumericX>& x,
@@ -1186,9 +1186,9 @@ bool scatter(const std::vector<NumericX>& x,
              const long fig_number=0) {
   detail::_interpreter::get();
 
-  // Same as with plot_surface: We lazily load the modules here the first time 
-  // this function is called because I'm not sure that we can assume "matplotlib 
-  // installed" implies "mpl_toolkits installed" on all platforms, and we don't 
+  // Same as with plot_surface: We lazily load the modules here the first time
+  // this function is called because I'm not sure that we can assume "matplotlib
+  // installed" implies "mpl_toolkits installed" on all platforms, and we don't
   // want to require it for people who don't need 3d plots.
   static PyObject *mpl_toolkitsmod = nullptr, *axis3dmod = nullptr;
   if (!mpl_toolkitsmod) {
@@ -1585,7 +1585,7 @@ bool quiver(const std::vector<NumericX>& x, const std::vector<NumericY>& y, cons
     Py_DECREF(axis3d);
     if (!axis3dmod) { throw std::runtime_error("Error loading module mpl_toolkits.mplot3d!"); }
   }
-  
+
   //assert sizes match up
   assert(x.size() == y.size() && x.size() == u.size() && u.size() == w.size() && x.size() == z.size() && x.size() == v.size() && u.size() == v.size());
 
@@ -1613,7 +1613,7 @@ bool quiver(const std::vector<NumericX>& x, const std::vector<NumericY>& y, cons
   {
       PyDict_SetItemString(kwargs, it->first.c_str(), PyUnicode_FromString(it->second.c_str()));
   }
-    
+
   //get figure gca to enable 3d projection
   PyObject *fig =
       PyObject_CallObject(detail::_interpreter::get().s_python_function_figure,
@@ -1633,7 +1633,7 @@ bool quiver(const std::vector<NumericX>& x, const std::vector<NumericY>& y, cons
   Py_INCREF(axis);
   Py_DECREF(gca);
   Py_DECREF(gca_kwargs);
-  
+
   //plot our boys bravely, plot them strongly, plot them with a wink and clap
   PyObject *plot3 = PyObject_GetAttrString(axis, "quiver");
   if (!plot3) throw std::runtime_error("No 3D line plot");
@@ -2772,7 +2772,7 @@ inline void rcparams(const std::map<std::string, std::string>& keywords = {}) {
           PyDict_SetItemString(kwargs, it->first.c_str(), PyLong_FromLong(std::stoi(it->second.c_str())));
         else PyDict_SetItemString(kwargs, it->first.c_str(), PyString_FromString(it->second.c_str()));
     }
-    
+
     PyObject * update = PyObject_GetAttrString(detail::_interpreter::get().s_python_function_rcparams, "update");
     PyObject * res = PyObject_Call(update, args, kwargs);
     if(!res) throw std::runtime_error("Call to rcParams.update() failed.");

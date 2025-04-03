@@ -20,7 +20,7 @@ using namespace std;
 
 /**
  * @brief Abstract base class for statistical distribution fitting.
- * 
+ *
  * Provides a common interface for different distribution estimators.
  * Implements utility functions for basic statistical calculations.
  * Each derived class implements specific distribution fitting methods.
@@ -43,7 +43,7 @@ public:
 
     /**
      * @brief Factory method to create specific distribution estimators
-     * 
+     *
      * Creates and returns a shared pointer to a concrete estimator based on
      * the requested distribution type. Available types:
      * - LL3: Three-parameter log-logistic
@@ -52,12 +52,12 @@ public:
      * @param type Distribution type to create
      * @return Shared pointer to concrete estimator instance
      * @throws invalid_argument if type is invalid or unsupported
-     */    
+     */
     static Estimator::Ptr create(ModelType type);
 
     /**
      * @brief Fits a statistical distribution to sample data
-     * 
+     *
      * @param samples Vector of observations to fit
      * @return Model structure containing:
      *         - defined: true if fit succeeded
@@ -69,7 +69,7 @@ public:
 
     /**
      * @brief Performs goodness-of-fit test on fitted distribution
-     * 
+     *
      * @param params Distribution parameters to test
      * @param samples Vector of observations to test against
      * @return tuple<bool, GoF>:
@@ -80,7 +80,7 @@ public:
 
     /**
      * @brief Calculates the cumulative distribution function (CDF) for a single value
-     * 
+     *
      * @param params Distribution parameters specific to each derived class
      * @param sample Single input value to evaluate
      * @return CDF value at the given sample point
@@ -89,7 +89,7 @@ public:
 
     /**
      * @brief Calculates the CDF for a vector of values
-     * 
+     *
      * @param params Distribution parameters specific to each derived class
      * @param samples Vector of input values to evaluate
      * @return Vector of CDF values corresponding to each input sample
@@ -98,7 +98,7 @@ public:
 
     /**
      * @brief Calculates the probability density function (PDF) for a single value
-     * 
+     *
      * @param params Distribution parameters specific to each derived class
      * @param sample Single input value to evaluate
      * @return PDF value at the given sample point
@@ -107,7 +107,7 @@ public:
 
     /**
      * @brief Calculates the PDF for a vector of values
-     * 
+     *
      * @param params Distribution parameters specific to each derived class
      * @param samples Vector of input values to evaluate
      * @return Vector of PDF values corresponding to each input sample
@@ -116,7 +116,7 @@ public:
 
     /**
      * @brief Generates a single random value from the distribution
-     * 
+     *
      * @param params Distribution parameters specific to each derived class
      * @return Single random value following the distribution
      */
@@ -124,7 +124,7 @@ public:
 
     /**
      * @brief Generates multiple random values from the distribution
-     * 
+     *
      * @param params Distribution parameters specific to each derived class
      * @param length Number of random values to generate
      * @return Vector of random values following the distribution
@@ -133,7 +133,7 @@ public:
 
     /**
      * @brief Calculates the expected value (mean) of the distribution
-     * 
+     *
      * @param params Distribution parameters specific to each derived class
      * @return Expected value E[X] of the distribution
      */
@@ -141,7 +141,7 @@ public:
 
     /**
      * @brief Calculates the variance of the distribution
-     * 
+     *
      * @param params Distribution parameters specific to each derived class
      * @return Variance Var[X] of the distribution
      */
@@ -149,7 +149,7 @@ public:
 
     /**
      * @brief Calculates the mode (most frequent value) of the distribution
-     * 
+     *
      * @param params Distribution parameters specific to each derived class
      * @return Mode of the distribution (highest point of PDF)
      */
@@ -167,14 +167,14 @@ protected:
 
     /**
      * @brief Generates a single random value from the uniform distribution
-     * 
+     *
      * @return Random value following the uniform distribution
      */
     double urnd();
 
     /**
      * @brief Calculates the error function for a given value
-     * 
+     *
      * @param x Input value
      * @return Value of the error function erf(x)
      */
@@ -182,7 +182,7 @@ protected:
 
     /**
      * @brief Calculates the inverse error function using numerical approximation
-     * 
+     *
      * @param x Input value in range (-1,1)
      * @return Value y such that erf(y) = x
      */

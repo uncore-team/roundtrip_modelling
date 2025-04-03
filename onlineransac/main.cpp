@@ -18,7 +18,7 @@ using namespace std;
 /**
  * Main program entry point.
  * Tests Online RANSAC algorithm with different configurations.
- * 
+ *
  * Implementation details:
  * - Reads RTT data from external file
  * - Tests combinations of:
@@ -27,7 +27,7 @@ using namespace std;
  *   * data_preserving (0-1)
  * - Uses LN3 model type
  * - Prints results for each configuration
- * 
+ *
  * @return 0 on successful execution
  */
 int main() {
@@ -37,7 +37,7 @@ int main() {
     const vector<double> samples = read_data(filename);
 
     // List the estimators
-    const vector<ModelType> model_types = {ModelType::LL3};
+    const vector<ModelType> model_types = {ModelType::EXP};
 
     const int len = samples.size();
     for(int model_preserving = 0; model_preserving < 3; ++model_preserving) {
@@ -75,7 +75,7 @@ int main() {
 //         std::cerr << "Error initializing Python" << std::endl;
 //         return 1;
 //     }
-    
+
 //     // Prepare data.
 //     int n = 5000;
 //     std::vector<double> x(n), y(n), z(n), w(n,2);

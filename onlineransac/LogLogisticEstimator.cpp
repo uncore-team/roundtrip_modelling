@@ -1,13 +1,13 @@
 /**
  * @brief Implementation of the LogLogisticEstimator class for three-parameter log-logistic distribution.
- * 
+ *
  * Provides methods for:
  * - Two-stage parameter estimation using maximum likelihood
  * - Shape parameter optimization with fixed location and scale
  * - Full three-parameter optimization using Levenberg-Marquardt
  * - Goodness of fit testing using Anderson-Darling
  * - OpenMP parallelization for large datasets
- * 
+ *
  * Based on D'Agostino & Stephens (1986), Chapter 4.
  */
 #ifdef _OPENMP
@@ -45,15 +45,15 @@ struct abc_optim_data {
 /**
  * Optimized function for finding the shape parameter (c) of a log-logistic distribution
  * using a single-parameter optimization approach.
- * 
+ *
  * @param x Input parameter array containing a single value:
  *          x[0]: shape parameter (c) to be optimized
  * @param fi Output function vector (1 component) containing the objective function value
  * @param ptr Pointer to optimization data containing fixed parameters (a, b) and target mean
- * 
+ *
  * The function implements the following formula:
  * fi[0] = a + b*exp(lgamma(1+x) + lgamma(1-x) - lgamma(2)) - mean
- * 
+ *
  * where:
  * - a is the location parameter (fixed)
  * - b is the scale parameter (fixed)
@@ -80,7 +80,7 @@ void c_fvec(const real_1d_array& x, real_1d_array& fi, void *ptr) {
 /**
  * Calculates the function vector for log-logistic optimization using maximum likelihood estimation.
  * This function computes the gradient of the log-likelihood function with respect to the parameters.
- * 
+ *
  * @param x Input parameter array [a, b, c] where:
  *          a: location parameter (minimum possible value)
  *          b: scale parameter (controls spread)
@@ -93,18 +93,18 @@ void c_fvec(const real_1d_array& x, real_1d_array& fi, void *ptr) {
  *          - samples: vector of observed values
  *          - len: number of samples
  *          - min: minimum value in samples
- * 
+ *
  * Implementation details:
  * - Uses OpenMP for parallel computation when dataset is large (>1000 samples)
  * - Parameters are bounded to ensure numerical stability
  * - Precomputes common terms to improve performance
  * - Uses reduction for parallel accumulation of sums
- * 
+ *
  * The function implements the maximum likelihood equations:
  * ∂L/∂a = sum(terms involving a)
  * ∂L/∂b = sum(terms involving b)
  * ∂L/∂c = sum(terms involving c)
- * 
+ *
  * where L is the log-likelihood function for the log-logistic distribution.
  */
 void abc_fvec(const real_1d_array& x, real_1d_array& fi, void* ptr) {
@@ -135,7 +135,7 @@ void abc_fvec(const real_1d_array& x, real_1d_array& fi, void* ptr) {
         #pragma omp parallel for reduction(+:sum1,sum2,sum3) if(len > OMP_THRESH)
     #endif
     for (unsigned i = 0; i < len; ++i) {
-        const double xma = samples[i] - a;	
+        const double xma = samples[i] - a;
         const double xma2invc = pow(xma, invc);
         const double logxma = log(xma);
         const double xmab = xma/b;
@@ -143,14 +143,14 @@ void abc_fvec(const real_1d_array& x, real_1d_array& fi, void* ptr) {
         const double logxmab = log(xmab);
 
         // Update partial sums
-		sum1 += ((1.0 + invc) - (2.0*b2invc/c)/aux)/xma;
-		sum2 += 1.0/aux;
-		sum3 += logxma - 2.0*logxmab/(pow(xmab, b2invc) + 1.0);
-	}
+        sum1 += ((1.0 + invc) - (2.0*b2invc/c)/aux)/xma;
+        sum2 += 1.0/aux;
+        sum3 += logxma - 2.0*logxmab/(pow(xmab, b2invc) + 1.0);
+    }
 
     // Final calculations
-	sum2 = (nn - 2.0*b2invc*sum2)/(bc);
-	sum3 = (-nn*(logb + c) + sum3)/(c*c);
+    sum2 = (nn - 2.0*b2invc*sum2)/(bc);
+    sum3 = (-nn*(logb + c) + sum3)/(c*c);
 
     // Store results
     fi[0] = sum1;
@@ -161,7 +161,7 @@ void abc_fvec(const real_1d_array& x, real_1d_array& fi, void* ptr) {
 /**
  * Calculates the Jacobian matrix for log-logistic optimization using maximum likelihood estimation.
  * This function computes the second-order derivatives (Hessian matrix) of the log-likelihood function.
- * 
+ *
  * @param x Input parameter array [a, b, c] where:
  *          a: location parameter (minimum possible value)
  *          b: scale parameter (controls spread)
@@ -175,18 +175,18 @@ void abc_fvec(const real_1d_array& x, real_1d_array& fi, void* ptr) {
  *          - samples: vector of observed values
  *          - len: number of samples
  *          - min: minimum value in samples
- * 
+ *
  * Implementation details:
  * - Uses OpenMP for parallel computation when dataset is large (>1000 samples)
  * - Parameters are bounded to ensure numerical stability
  * - Precomputes common terms to improve performance
  * - Uses reduction for parallel accumulation of sums and matrix elements
  * - Implements analytical derivatives for better numerical accuracy
- * 
+ *
  * The function calculates both:
  * 1. First derivatives (stored in fi vector)
  * 2. Second derivatives (stored in jac matrix)
- * 
+ *
  * These are used by the Levenberg-Marquardt optimizer to determine:
  * - Direction of steepest descent
  * - Step size for parameter updates
@@ -249,11 +249,11 @@ void abc_jac(const real_1d_array& x, real_1d_array& fi, real_2d_array& jac, void
         f1a += (1.0 + invc)/xma2 - 2.0*b2invc/c*(c*aux + xma2invc)/(c*xma2*aux2);
         f1b += -2.0/(c*xma)*b2invc*xma2invc/(bc*aux2);
         f1c += -1.0/(c2*xma) + 2.0*b2invc*(c*aux + logb*xma2invc - xma2invc*logxma)/(c3*xma*aux2);
-        
+
         f2a += xma2invc/(xma*aux2);
         f2b += (c*aux - xma2invc)/aux2;
         f2c += (c*aux + logb*xma2invc - xma2invc*logxma)/aux2;
-        
+
         f3a += -1.0/xma + 2.0*(c*xmab2invc - xmab2invc*logxmab + c)/(c*xma*aux12);
         f3b += (xmab2invc*logxmab - c*aux1)/aux12;
         f3c += logxma + (logxmab*(xmab2invc*logxmab - 2.0*c*aux1))/(c*aux12);
@@ -293,19 +293,19 @@ LogLogisticEstimator::LogLogisticEstimator() : Estimator(10) {
 /**
  * Estimates the shape parameter (c) of a log-logistic distribution while keeping location (a) and scale (b) fixed.
  * Uses Levenberg-Marquardt optimization with single-parameter bounded optimization.
- * 
+ *
  * @param samples Input vector of observed values
  * @param a Fixed location parameter (minimum possible value)
  * @param b Fixed scale parameter (controls spread)
  * @param c Input/Output shape parameter (controls skewness):
  *          - Input: Initial guess for optimization
  *          - Output: Optimized value if successful
- * 
+ *
  * @return Termination type from optimizer:
  *         >0: successful completion
  *         =0: maximum number of iterations reached
  *         <0: optimization failed
- * 
+ *
  * Implementation details:
  * - Uses bounded optimization to keep c in [0.05, 0.5-eps]
  * - Scales parameter for numerical stability
@@ -355,7 +355,7 @@ int LogLogisticEstimator::c_estimate(const vector<double>& samples, const double
 /**
  * Estimates all three parameters (a,b,c) of a log-logistic distribution simultaneously.
  * Uses Levenberg-Marquardt optimization with multi-parameter bounded optimization.
- * 
+ *
  * @param samples Input vector of observed values
  * @param a Input/Output location parameter:
  *          - Input: Initial guess
@@ -366,12 +366,12 @@ int LogLogisticEstimator::c_estimate(const vector<double>& samples, const double
  * @param c Input/Output shape parameter:
  *          - Input: Initial guess
  *          - Output: Optimized value
- * 
+ *
  * @return Termination type from optimizer:
  *         >0: successful completion
  *         =0: maximum number of iterations reached
  *         <0: optimization failed
- * 
+ *
  * Implementation details:
  * - Uses bounded optimization:
  *   * a ∈ [eps, min-eps]
@@ -427,15 +427,15 @@ int LogLogisticEstimator::abc_estimate(const vector<double>& samples, double& a,
 /**
  * Fits a three-parameter log-logistic distribution to the given samples.
  * Uses a two-stage optimization approach for better convergence.
- * 
+ *
  * @param samples Input vector of observed values (must be positive)
- * 
+ *
  * @return Model structure containing:
  *         - defined: true if fit was successful
  *         - type: ModelType::LL3 for successful fit, ModelType::None otherwise
  *         - params: {a, b, c} parameters of the distribution
  *         - gof: Goodness of fit statistics
- * 
+ *
  * Implementation details:
  * - First stage: Estimates shape parameter c while keeping a and b fixed
  * - Second stage: Refines all parameters (a, b, c) simultaneously
@@ -444,7 +444,7 @@ int LogLogisticEstimator::abc_estimate(const vector<double>& samples, double& a,
  *   * b: median of (samples - a)
  *   * c: 0.25 (midpoint of typical range)
  * - Performs goodness of fit test after parameter estimation
- * 
+ *
  * @throws invalid_argument if:
  *         - samples.size() < m_min_len
  *         - min(samples) <= 0
@@ -499,27 +499,27 @@ Model LogLogisticEstimator::fit(const vector<double>& samples) {
     auto [reject, gof_] = gof(params, samples);
 
     // Return model only if fit is acceptable
-    //    empty model = {false, ModelType::None, {NAN, NAN, NAN}, {Inf, NAN}}    
+    //    empty model = {false, ModelType::None, {NAN, NAN, NAN}, {Inf, NAN}}
     return reject ? Model() : Model{true, ModelType::LL3, params, gof_};
 }
 
 /**
  * Performs Anderson-Darling goodness of fit test for log-logistic distribution.
  * Based on "Goodness-of-fit techniques" by D'Agostino and Stephens (1986).
- * 
+ *
  * @param params Model parameters {a, b, c} to test
  * @param samples Input vector of observed values
- * 
+ *
  * @return tuple<bool, GoF> containing:
  *         - bool: true if null hypothesis should be rejected (poor fit)
  *         - GoF: {statistic, threshold} for the Anderson-Darling test
- * 
+ *
  * Implementation details:
  * - Uses Case 3 from Table 4.22 (p.157) for parameters estimated from same sample
  * - Significance level: 0.05 (95% confidence)
  * - Applies small sample size correction factor
  * - Transforms data to uniform distribution for testing
- * 
+ *
  * Rejection criteria:
  * - If any sample ≤ location parameter a
  * - If test statistic > threshold (0.660 for parameters from same sample)
@@ -556,7 +556,7 @@ tuple<bool, GoF> LogLogisticEstimator::gof(const ModelParams& params, const vect
     }
     sort(data.begin(), data.end());
 
-    // Calculate Anderson-Darling statistic (A²) This statistic measures the 
+    // Calculate Anderson-Darling statistic (A²) This statistic measures the
     // squared distance between experimental and theoretical Zs, and, indirectly,
     // between theoretical and experimental Xs (p. 100)
     const double lenf = static_cast<double>(len);
@@ -584,18 +584,18 @@ tuple<bool, GoF> LogLogisticEstimator::gof(const ModelParams& params, const vect
 }
 
 /**
- * Calculates the cumulative distribution function (CDF) for a single value from 
+ * Calculates the cumulative distribution function (CDF) for a single value from
  * the log-logistic distribution. Implements the analytical form of the CDF based
  * on the three-parameter log-logistic distribution.
- * 
+ *
  * @param params Distribution parameters {a, b, c} where:
  *        - a (gamma): location parameter (minimum possible value)
  *        - b (alpha): scale parameter
  *        - c (1/beta): shape parameter
  * @param sample Single input value to evaluate
- * 
+ *
  * @return CDF value F(x) = 1/(1 + ((x-a)/b)^(-1/c))
- * 
+ *
  * Implementation details:
  * - Handles boundary conditions (x <= a) explicitly
  * - Uses location-scale parameterization
@@ -622,15 +622,15 @@ double LogLogisticEstimator::cdf(const ModelParams& params, const double& sample
  * Calculates the cumulative distribution function (CDF) for multiple values from
  * the log-logistic distribution. Provides vectorized implementation for efficiency
  * on large datasets.
- * 
+ *
  * @param params Distribution parameters {a, b, c} where:
  *        - a (gamma): location parameter (minimum possible value)
  *        - b (alpha): scale parameter
  *        - c (1/beta): shape parameter
  * @param samples Vector of input values to evaluate
- * 
+ *
  * @return Vector of CDF values F(x) = 1/(1 + ((x-a)/b)^(-1/c))
- * 
+ *
  * Implementation details:
  * - Uses OpenMP for parallel computation when dataset is large (>1000 samples)
  * - Pre-computes common terms outside the loop for efficiency
@@ -650,7 +650,7 @@ vector<double> LogLogisticEstimator::cdf(const ModelParams& params, const vector
 
     size_t len = samples.size();
     vector<double> cdf(len);
-    
+
     #ifdef _OPENMP
         #pragma omp parallel for if(len > OMP_THRESH)
     #endif
@@ -663,16 +663,16 @@ vector<double> LogLogisticEstimator::cdf(const ModelParams& params, const vector
 /**
  * Calculates the probability density function (PDF) for a single value from
  * the log-logistic distribution. Implements the analytical form of the PDF.
- * 
+ *
  * @param params Distribution parameters {a, b, c} where:
  *        - a (gamma): location parameter (minimum possible value)
  *        - b (alpha): scale parameter
  *        - c (1/beta): shape parameter
  * @param sample Single input value to evaluate
- * 
+ *
  * @return PDF value f(x) = (β/α)((x-a)/α)^(β-1)/(1+((x-a)/α)^β)^2
  * where β = 1/c
- * 
+ *
  * Implementation details:
  * - Pre-computes common terms for efficiency
  * - Handles boundary conditions (x <= a) explicitly
@@ -700,16 +700,16 @@ double LogLogisticEstimator::pdf(const ModelParams& params, const double& sample
 /**
  * Calculates the probability density function (PDF) for multiple values from
  * the log-logistic distribution. Provides vectorized implementation for efficiency.
- * 
+ *
  * @param params Distribution parameters {a, b, c} where:
  *        - a (gamma): location parameter (minimum possible value)
  *        - b (alpha): scale parameter
  *        - c (1/beta): shape parameter
  * @param samples Vector of input values to evaluate
- * 
+ *
  * @return Vector of PDF values f(x) = (β/α)((x-a)/α)^(β-1)/(1+((x-a)/α)^β)^2
  * where β = 1/c
- * 
+ *
  * Implementation details:
  * - Uses OpenMP for parallel computation when dataset is large (>1000 samples)
  * - Pre-computes common terms outside the loop for efficiency
@@ -743,22 +743,22 @@ vector<double> LogLogisticEstimator::pdf(const ModelParams& params, const vector
 /**
  * Generates a single random value from the log-logistic distribution using
  * inverse transform sampling.
- * 
+ *
  * @param params Distribution parameters {a, b, c} where:
  *        - a (gamma): location parameter (minimum possible value)
  *        - b (alpha): scale parameter
  *        - c (1/beta): shape parameter
  * @return Random value following the log-logistic distribution
- * 
+ *
  * Uses inverse transform sampling with the formula:
  * X = a + b * (p / (1 - p))^(1/c)
  * where p ~ U(0,1)
- * 
+ *
  * Implementation details:
  * - Uses std::uniform_real_distribution for uniform random number generation
  * - Validates parameters b and c to ensure they are positive
  * - Applies location-scale transformation
- * 
+ *
  * @throws invalid_argument if b <= 0 or c <= 0
  */
 double LogLogisticEstimator::rnd(const ModelParams& params) {
@@ -784,21 +784,21 @@ double LogLogisticEstimator::rnd(const ModelParams& params) {
  * Generates multiple random values from the log-logistic distribution using
  * vectorized inverse transform sampling. Optimized for generating large
  * numbers of random values efficiently.
- * 
+ *
  * @param params Distribution parameters {a, b, c} where:
  *        - a (gamma): location parameter (minimum possible value)
  *        - b (alpha): scale parameter
  *        - c (1/beta): shape parameter
  * @param length Number of random values to generate
  * @return Vector of random values following the log-logistic distribution
- * 
+ *
  * Uses inverse transform sampling with the formula:
  * X = a + exp(μ + σ*log(p/(1-p)))
  * where:
  * - μ = log(b)
  * - σ = c
  * - p ~ U(0,1)
- * 
+ *
  * Implementation details:
  * - Uses OpenMP for parallel generation when length > OMP_THRESH
  * - Reuses uniform distribution from base class
@@ -833,13 +833,13 @@ vector<double> LogLogisticEstimator::rnd(const ModelParams& params, const unsign
  * Calculates the expectation (mean) of the log-logistic distribution.
  * For shape parameter c > 1, the expectation exists and is given by
  * the analytical formula.
- * 
+ *
  * @param params Distribution parameters {a, b, c} where:
  *        - a (gamma): location parameter (minimum possible value)
  *        - b (alpha): scale parameter
  *        - c (1/beta): shape parameter
  * @return Expected value E[X] = a + b*π*c/sin(π*c) when c < 1, NaN otherwise
- * 
+ *
  * Implementation details:
  * - Validates existence condition (c < 1)
  * - Uses transformed parameters for numerical stability
@@ -862,13 +862,13 @@ double LogLogisticEstimator::expectation(const ModelParams& params) {
  * Calculates the variance of the log-logistic distribution.
  * For shape parameter c > 2, the variance exists and is given by
  * the analytical formula.
- * 
+ *
  * @param params Distribution parameters {a, b, c} where:
  *        - a (gamma): location parameter (minimum possible value)
  *        - b (alpha): scale parameter
  *        - c (1/beta): shape parameter
  * @return Variance when c < 0.5, NaN otherwise
- * 
+ *
  * Implementation details:
  * - Validates existence condition (c < 0.5)
  * - Pre-computes common terms for efficiency
@@ -890,13 +890,13 @@ double LogLogisticEstimator::variance(const ModelParams& params) {
 /**
  * Calculates the mode of the log-logistic distribution.
  * The mode exists for all parameter values and has an analytical form.
- * 
+ *
  * @param params Distribution parameters {a, b, c} where:
  *        - a (gamma): location parameter (minimum possible value)
  *        - b (alpha): scale parameter
  *        - c (1/beta): shape parameter
  * @return Mode = a + b*((1-c)/(1+c))^c when c < 1, a otherwise
- * 
+ *
  * Implementation details:
  * - Validates existence condition (c < 1)
  * - Uses transformed parameters for numerical stability

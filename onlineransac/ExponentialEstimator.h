@@ -7,15 +7,15 @@ using namespace std;
 
 /**
  * @brief Class for fitting and analyzing two-parameter exponential distributions.
- * 
+ *
  * Implements maximum likelihood estimation and goodness-of-fit testing for
  * the exponential distribution with parameters:
  * - alpha (location)
  * - beta (rate)
- * 
+ *
  * The probability density function is:
  * f(x) = beta * exp(-beta*(x - alpha)) for x ≥ alpha
- * 
+ *
  * Implementation based on D'Agostino & Stephens (1986), Chapter 4.
  */
 class ExponentialEstimator : public Estimator {
@@ -28,7 +28,7 @@ public:
 
     /**
      * @brief Fits a two-parameter exponential distribution to sample data.
-     * 
+     *
      * @param samples Vector of observations to fit
      * @return Model structure containing:
      *         - defined: true if fit succeeded
@@ -41,7 +41,7 @@ public:
 
     /**
      * @brief Performs Anderson-Darling goodness-of-fit test.
-     * 
+     *
      * @param params Distribution parameters {alpha, beta} to test
      * @param samples Vector of observations to test against
      * @return tuple<bool, GoF>:
@@ -53,7 +53,7 @@ public:
 
     /**
      * @brief Calculates the cumulative distribution function (CDF) for a single value.
-     * 
+     *
      * @param params Distribution parameters {alpha, beta} where:
      *        - alpha: location parameter (minimum possible value)
      *        - beta: rate parameter (1/mean)
@@ -64,7 +64,7 @@ public:
 
     /**
      * @brief Calculates the CDF for a vector of values.
-     * 
+     *
      * @param params Distribution parameters {alpha, beta}
      * @param samples Vector of input values to evaluate
      * @return Vector of CDF values F(x) = 1 - exp(-beta * (x - alpha))
@@ -73,7 +73,7 @@ public:
 
     /**
      * @brief Calculates the probability density function (PDF) for a single value.
-     * 
+     *
      * @param params Distribution parameters {alpha, beta} where:
      *        - alpha: location parameter
      *        - beta: rate parameter (1/mean)
@@ -85,7 +85,7 @@ public:
 
     /**
      * @brief Calculates the PDF for a vector of values.
-     * 
+     *
      * @param params Distribution parameters {alpha, beta}
      * @param samples Vector of input values to evaluate
      * @return Vector of PDF values f(x) = beta * exp(-beta * (x - alpha))
@@ -95,7 +95,7 @@ public:
 
     /**
      * @brief Generates a random value from the exponential distribution.
-     * 
+     *
      * @param params Distribution parameters {alpha, beta}
      * @return Single random value from the exponential distribution
      * @throws invalid_argument if beta <= 0
@@ -104,7 +104,7 @@ public:
 
     /**
      * @brief Generates multiple random values from the exponential distribution.
-     * 
+     *
      * @param params Distribution parameters {alpha, beta}
      * @param length Number of random values to generate
      * @return Vector of random values from the exponential distribution
@@ -114,7 +114,7 @@ public:
 
     /**
      * @brief Calculates the expected value (mean) of the exponential distribution
-     * 
+     *
      * @param params Distribution parameters {alpha, beta} where:
      *        - alpha: location parameter
      *        - beta: rate parameter (1/mean)
@@ -124,7 +124,7 @@ public:
 
     /**
      * @brief Calculates the variance of the exponential distribution
-     * 
+     *
      * @param params Distribution parameters {alpha, beta} where:
      *        - alpha: location parameter
      *        - beta: rate parameter (1/mean)
@@ -134,7 +134,7 @@ public:
 
     /**
      * @brief Calculates the mode of the exponential distribution
-     * 
+     *
      * @param params Distribution parameters {alpha, beta} where:
      *        - alpha: location parameter
      *        - beta: rate parameter (1/mean)
