@@ -1,11 +1,11 @@
 /**
  * Implementation of the LogNormalEstimator class for three-parameter log-normal distribution.
- * 
+ *
  * Provides methods for:
  * - Parameter estimation using maximum likelihood
  * - Goodness of fit testing using Anderson-Darling
  * - Distribution fitting with validation
- * 
+ *
  * Based on D'Agostino & Stephens (1986), Chapter 4.
  */
 #ifdef _OPENMP
@@ -44,13 +44,13 @@ LogNormalEstimator::LogNormalEstimator() : Estimator(10) {
  * Evaluates objective function for gamma parameter optimization.
  * Implements Welford's online algorithm for stable mean and standard deviation calculation.
  * Assumes r=1 for the Modified Maximum Likelihood Estimation (MMLE-I).
- * 
+ *
  * @param samples Input vector of observations
  * @param min Minimum value in samples
  * @param kr Normal quantile for r/(n+1)
  * @param x Current gamma value being evaluated
  * @return Function value at x, or NaN if x is invalid
- * 
+ *
  * Implementation details:
  * - Uses Welford's algorithm for numerical stability
  * - Parallelizes computation for large datasets (>1000 samples)
@@ -87,7 +87,7 @@ double LogNormalEstimator::gamma_fvec(const double gamma, const void* ptr) {
     double mu = 0.0;     // Mean
     #ifdef _OPENMP
         #pragma omp parallel for reduction(+:mu) if(len > OMP_THRESH)
-    #endif  
+    #endif
     for (const double& sample : samples) {
         mu += log(sample - gamma);
     }
@@ -96,7 +96,7 @@ double LogNormalEstimator::gamma_fvec(const double gamma, const void* ptr) {
     double sigma2 = 0.0;     // Second moment (used for standard deviation)
     #ifdef _OPENMP
         #pragma omp parallel for reduction(+:sigma2) if(len > OMP_THRESH)
-    #endif  
+    #endif
     for (const double& sample : samples) {
         const double delta = log(sample - gamma) - mu;
         sigma2 += delta*delta;
@@ -111,14 +111,14 @@ double LogNormalEstimator::gamma_fvec(const double gamma, const void* ptr) {
 /**
  * Fits a three-parameter log-normal distribution to sample data.
  * Uses a two-stage approach: first estimates gamma, then mu and sigma.
- * 
+ *
  * @param samples Vector of observations to fit
  * @return Model structure containing:
  *         - Validity flag
  *         - Distribution type (LN3)
  *         - Parameters {gamma, mu, sigma}
  *         - Goodness of fit metrics
- * 
+ *
  * Implementation details:
  * - First estimates offset parameter gamma using MMLE-I
  * - Then calculates mu and sigma using Welford's algorithm
@@ -141,7 +141,7 @@ Model LogNormalEstimator::fit(const vector<double>& samples) {
 
     // Setup search process
     int termcode; // Optimization exit code
-    const double tolx = eps; // 
+    const double tolx = eps; //
     const double a = 0;
     const double b = min - 1e-9;
 
@@ -151,7 +151,7 @@ Model LogNormalEstimator::fit(const vector<double>& samples) {
     if(termcode < 0) {
         cerr << "Error: Optimization did not converge. Code: " << termcode << endl;
         return Model(); // return an empty model: {false, ModelType::None, {NAN, NAN, NAN}, {Inf, NAN}}
-    }        
+    }
 
     // // Calculate mean and standard deviation using Welford's online algorithm
     // // IMPORTANT: This algorithm can not be parallelized
@@ -171,7 +171,7 @@ Model LogNormalEstimator::fit(const vector<double>& samples) {
     double mu = 0.0;     // Mean
     #ifdef _OPENMP
         #pragma omp parallel for reduction(+:mu) if(len > OMP_THRESH)
-    #endif  
+    #endif
     for (const double& sample : samples) {
         mu += log(sample - gamma);
     }
@@ -180,7 +180,7 @@ Model LogNormalEstimator::fit(const vector<double>& samples) {
     double sigma2 = 0.0;     // Second moment (used for standard deviation)
     #ifdef _OPENMP
         #pragma omp parallel for reduction(+:sigma2) if(len > OMP_THRESH)
-    #endif  
+    #endif
     for (const double& sample : samples) {
         const double delta = log(sample - gamma) - mu;
         sigma2 += delta*delta;
@@ -202,25 +202,25 @@ Model LogNormalEstimator::fit(const vector<double>& samples) {
 /**
  * Performs Anderson-Darling goodness of fit test for the log-normal distribution.
  * Based on D'Agostino & Stephens (1986), p. 123.
- * 
+ *
  * @param params Distribution parameters {gamma, mu, sigma} where:
  *        - gamma: Location parameter (minimum possible value)
  *        - mu: Mean of the associated normal distribution (μ)
  *        - sigma: Standard deviation of the associated normal distribution (σ > 0)
  * @param samples Vector of observations to test against
- * 
+ *
  * @return tuple<bool, GoF> containing:
  *         - bool: true if null hypothesis should be rejected (poor fit)
  *         - GoF: {statistic, threshold} where:
  *           * statistic: modified A² test statistic
  *           * threshold: critical value (0.752) from Table 4.7, Case 3
- * 
+ *
  * Implementation details:
  * - Transforms data to standard normal using CDF
  * - Applies small sample correction factor: (1 + 0.75/n + 2.25/n²)
  * - Uses right-tailed test with significance level 0.05
  * - Rejection criteria: A² > 0.752
- * 
+ *
  * @throws invalid_argument if:
  *         - sigma <= 0
  *         - samples.size() < m_min_len
@@ -258,7 +258,7 @@ tuple<bool, GoF> LogNormalEstimator::gof(const ModelParams& params, const vector
     }
     sort(data.begin(), data.end());
 
-    // Calculate Anderson-Darling statistic (A²) This statistic measures the 
+    // Calculate Anderson-Darling statistic (A²) This statistic measures the
     // squared distance between experimental and theoretical Zs, and, indirectly,
     // between theoretical and experimental Xs (p. 100)
     const double lenf = static_cast<double>(len);
@@ -288,14 +288,14 @@ tuple<bool, GoF> LogNormalEstimator::gof(const ModelParams& params, const vector
 /**
  * Calculates the cumulative distribution function (CDF) for a single value
  * from the log-normal distribution with offset.
- * 
+ *
  * @param params Distribution parameters {gamma, mu, sigma} where:
  *        - gamma: Location parameter (minimum possible value)
  *        - mu: Mean of the associated normal distribution (μ)
  *        - sigma: Standard deviation of the associated normal distribution (σ > 0)
  * @param sample Single input value to evaluate
  * @return CDF value F(x) = Φ((ln(x-gamma) - α)/σ) where Φ is the standard normal CDF
- * 
+ *
  * Implementation details:
  * - Uses error function (erf) for standard normal CDF calculation
  * - Handles boundary conditions (x <= gamma)
@@ -320,15 +320,15 @@ double LogNormalEstimator::cdf(const ModelParams& params, const double& sample) 
 /**
  * Calculates the cumulative distribution function (CDF) for multiple values
  * from the log-normal distribution with offset.
- * 
+ *
  * @param params Distribution parameters {gamma, mu, sigma} where:
  *        - gamma: Location parameter (minimum possible value)
  *        - mu: Mean of the associated normal distribution (μ)
  *        - sigma: Standard deviation of the associated normal distribution (σ > 0)
  * @param x Vector of values to evaluate
- * @return Vector of CDF values F(x) = Φ((ln(x-gamma) - μ)/σ) 
+ * @return Vector of CDF values F(x) = Φ((ln(x-gamma) - μ)/σ)
  *         where Φ is the standard normal CDF
- * 
+ *
  * Implementation details:
  * - Uses error function (erf) for standard normal CDF calculation
  * - Handles boundary conditions (x <= gamma)
@@ -351,7 +351,7 @@ vector<double> LogNormalEstimator::cdf(const ModelParams& params, const vector<d
 
     #ifdef _OPENMP
         #pragma omp parallel for if(len > OMP_THRESH)
-    #endif    
+    #endif
     for(size_t i = 0; i < len; ++i) {
         cdf[i] = this->cdf(params, samples[i]);
     }
@@ -361,14 +361,14 @@ vector<double> LogNormalEstimator::cdf(const ModelParams& params, const vector<d
 /**
  * Calculates the cumulative distribution function (CDF) for a single value
  * from the log-normal distribution with offset.
- * 
+ *
  * @param params Distribution parameters {gamma, mu, sigma} where:
  *        - gamma: Location parameter (minimum possible value)
  *        - mu: Mean of the associated normal distribution (μ)
  *        - sigma: Standard deviation of the associated normal distribution (σ > 0)
  * @param sample Single input value to evaluate
  * @return CDF value F(x) = Φ((ln(x-gamma) - α)/σ) where Φ is the standard normal CDF
- * 
+ *
  * Implementation details:
  * - Uses error function (erf) for standard normal CDF calculation
  * - Handles boundary conditions (x <= gamma)
@@ -398,14 +398,14 @@ double LogNormalEstimator::pdf(const ModelParams& params, const double& sample) 
 /**
  * Calculates the probability density function (PDF) for multiple values
  * from the log-normal distribution with offset.
- * 
+ *
  * @param params Distribution parameters {gamma, mu, sigma} where:
  *        - gamma: Location parameter (minimum possible value)
  *        - mu: Mean of the associated normal distribution (μ)
  *        - sigma: Standard deviation of the associated normal distribution (σ > 0)
  * @param x Vector of values to evaluate
  * @return Vector of PDF values f(x) = 1/((x-gamma)σ√(2π)) * exp(-(ln(x-gamma)-μ)²/(2σ²))
- * 
+ *
  * Implementation details:
  * - Pre-computes common terms for efficiency
  * - Handles boundary conditions (x <= gamma)
@@ -438,17 +438,17 @@ vector<double> LogNormalEstimator::pdf(const ModelParams& params, const vector<d
 /**
  * Generates a single random value from the log-normal distribution using
  * the C++ Standard Library's lognormal_distribution.
- * 
+ *
  * @param params Distribution parameters {gamma, mu, sigma} where:
  *        - gamma: Location parameter (minimum possible value)
  *        - mu: Mean of the associated normal distribution (μ)
  *        - sigma: Standard deviation of the associated normal distribution (σ > 0)
  * @return Random value X = gamma + Y, where Y ~ LogNormal(μ, σ)
- * 
+ *
  * Implementation details:
  * - Uses lognormal_distribution for log-normal random number generation
  * - Validates sigma parameter to ensure it is positive
- * 
+ *
  * @throws invalid_argument if sigma <= 0
  */
 double LogNormalEstimator::rnd(const ModelParams& params) {
@@ -473,19 +473,19 @@ double LogNormalEstimator::rnd(const ModelParams& params) {
 /**
  * Generates multiple random values from the log-normal distribution using
  * the C++ Standard Library's lognormal_distribution.
- * 
+ *
  * @param params Distribution parameters {gamma, mu, sigma} where:
  *        - gamma: Location parameter (minimum possible value)
  *        - mu: Mean of the associated normal distribution (μ)
  *        - sigma: Standard deviation of the associated normal distribution (σ > 0)
  * @param length Number of random values to generate
  * @return Vector of random values following the log-normal distribution
- * 
+ *
  * Implementation details:
  * - Uses lognormal_distribution for log-normal random number generation
  * - Validates sigma parameter to ensure it is positive
  * - Uses OpenMP for parallel generation when length > OMP_THRESH
- * 
+ *
  * @throws invalid_argument if sigma <= 0
  */
 vector<double> LogNormalEstimator::rnd(const ModelParams& params, const unsigned& length) {
@@ -518,13 +518,13 @@ vector<double> LogNormalEstimator::rnd(const ModelParams& params, const unsigned
 
 /**
  * Calculates the expected value (mean) of the log-normal distribution.
- * 
+ *
  * @param params Distribution parameters {gamma, mu, sigma} where:
  *        - gamma: offset parameter (minimum possible value)
  *        - mu: location parameter (μ)
  *        - sigma: scale parameter (σ > 0)
  * @return Expected value E[X] = gamma + exp(α + σ²/2)
- * 
+ *
  * Implementation details:
  * - Validates sigma parameter
  * - Uses exact analytical formula
@@ -544,13 +544,13 @@ double LogNormalEstimator::expectation(const ModelParams& params) {
 
 /**
  * Calculates the variance of the log-normal distribution.
- * 
+ *
  * @param params Distribution parameters {gamma, mu, sigma} where:
  *        - gamma: offset parameter (minimum possible value)
  *        - mu: location parameter (μ)
  *        - sigma: scale parameter (σ > 0)
  * @return Variance Var[X] = [exp(σ²) - 1]exp(2α + σ²)
- * 
+ *
  * Implementation details:
  * - Validates sigma parameter
  * - Pre-computes sigma squared term
@@ -574,13 +574,13 @@ double LogNormalEstimator::variance(const ModelParams& params) {
 
 /**
  * Calculates the mode of the log-normal distribution.
- * 
+ *
  * @param params Distribution parameters {gamma, mu, sigma} where:
  *        - gamma: offset parameter (minimum possible value)
  *        - mu: location parameter (μ)
  *        - sigma: scale parameter (σ > 0)
  * @return Mode = gamma + exp(α - σ²)
- * 
+ *
  * Implementation details:
  * - Validates sigma parameter
  * - Uses exact analytical formula
@@ -602,13 +602,13 @@ double LogNormalEstimator::mode(const ModelParams& params) {
 /**
  * Finds a zero of a continuous function using a combination of bisection and interpolation.
  * Implementation based on the algorithm used in MATLAB's fzero function.
- * 
+ *
  * @param fun Function object to find zero for
  * @param a Left endpoint of initial interval
  * @param b Right endpoint of initial interval
  * @param tol Relative tolerance for convergence (default: 1e-6)
  * @param ptr Optional pointer to additional data needed by fun
- * 
+ *
  * @return pair<double, int> containing:
  *         - double: Approximate zero of the function
  *         - int: Exit flag indicating success/failure:
@@ -618,13 +618,13 @@ double LogNormalEstimator::mode(const ModelParams& params) {
  *           -4: Complex value encountered
  *           -5: Converged to singular point
  *           -6: No sign change detected in interval
- * 
+ *
  * Implementation details:
  * - Uses combination of bisection and inverse quadratic interpolation
  * - Ensures robust convergence through interval updating
  * - Handles corner cases (exact zeros, NaN/Inf values)
  * - Implements safeguards against numerical instability
- * 
+ *
  * @throws invalid_argument if a >= b (invalid interval)
  */
 tuple<double, int> LogNormalEstimator::fzero(const function<double(const double, const void*)>& fun, double a, double b, double tol, void* ptr) {
@@ -694,7 +694,7 @@ tuple<double, int> LogNormalEstimator::fzero(const function<double(const double,
             // Use interpolation
             double s = fb / fa;
             double p, q;
-            
+
             if (a == c) {
                 // Linear interpolation
                 p = 2.0 * m * s;
@@ -712,7 +712,7 @@ tuple<double, int> LogNormalEstimator::fzero(const function<double(const double,
             else p = -p;
 
             // Accept interpolation if in bounds
-            if (2.0 * p < 3.0 * m * q - abs(toler * q) && 
+            if (2.0 * p < 3.0 * m * q - abs(toler * q) &&
                 p < abs(0.5 * e * q)) {
                 e = d;
                 d = p / q;
@@ -724,7 +724,7 @@ tuple<double, int> LogNormalEstimator::fzero(const function<double(const double,
         // Update points for next iteration
         a = b;
         fa = fb;
-        
+
         // Calculate new point with bounds checking
         if (abs(d) > toler) {
             b += d;
@@ -737,8 +737,8 @@ tuple<double, int> LogNormalEstimator::fzero(const function<double(const double,
 
         // Check for invalid results
         if (!isfinite(fb)) {
-            return {b, isnan(fb) ? 
-                ExitFlag::NaNOrInfEncountered : 
+            return {b, isnan(fb) ?
+                ExitFlag::NaNOrInfEncountered :
                 ExitFlag::ComplexValueEncountered};
         }
 

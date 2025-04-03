@@ -1,13 +1,13 @@
 /**
  * @brief Implementation of the OnlineRANSAC class for real-time outlier detection.
- * 
+ *
  * Provides methods for:
  * - Online model fitting and assessment
  * - Multiple distribution support (Log-logistic, Log-normal, Exponential)
  * - Model preservation strategies
  * - Sample sliding/forgetting mechanisms
  * - Dynamic model updating
- * 
+ *
  * Based on RANSAC (Random Sample Consensus) algorithm adapted for online processing.
  */
 
@@ -25,7 +25,7 @@ using namespace std;
 /**
  * Constructor for OnlineRANSAC class.
  * Initializes the online outlier detection algorithm with specified parameters.
- * 
+ *
  * @param min_len Minimum number of samples needed to start modeling (> 1)
  * @param max_len Maximum number of samples to maintain (> min_len)
  * @param model_preserving Model preservation strategy:
@@ -39,12 +39,12 @@ using namespace std;
  *        - 0: Reset to minimum length on failure
  *        - 1: Preserve all valid samples
  * @param model_types Vector of distribution types to try fitting
- * 
+ *
  * Implementation details:
  * - Validates all input parameters
  * - Initializes distribution estimators based on model types
  * - Sets up initial empty state
- * 
+ *
  * @throws invalid_argument if:
  *         - min_len <= 1
  *         - max_len <= min_len
@@ -81,12 +81,12 @@ OnlineRANSAC::OnlineRANSAC(unsigned min_len, unsigned max_len, unsigned model_pr
 /**
  * Assesses data against multiple distribution models.
  * Attempts to fit each configured distribution type in sequence.
- * 
+ *
  * @param samples Vector of observations to fit
  * @return Model structure containing:
  *         - First successful fit if any model fits
  *         - Empty model if no distribution fits well
- * 
+ *
  * Implementation details:
  * - Tries each model type in order specified at construction
  * - Uses Anderson-Darling test for goodness of fit
@@ -106,20 +106,20 @@ Model OnlineRANSAC::assess(const vector<double>& samples) {
 /**
  * Updates the model with a new sample.
  * Core implementation of the online RANSAC algorithm.
- * 
+ *
  * @param sample New observation to process
  * @return Exit branch indicating result:
  *         1: No valid model (insufficient data or no fit)
  *         2: New model created and validated
  *         3: Existing model preserved
- * 
+ *
  * Implementation details:
  * - Adds new sample to data window
  * - Handles initialization phase (len < min_len)
  * - Implements model preservation strategy
  * - Maintains sample window size
  * - Updates algorithm state
- * 
+ *
  * @throws invalid_argument if:
  *         - model_preserving value is invalid
  *         - invalid exit branch encountered
@@ -222,7 +222,7 @@ int OnlineRANSAC::update(double sample) {
         case 2: // model + consensus created now
         case 3: { // model preserved
             m_state.samples = samples;
-            m_state.model = model; 
+            m_state.model = model;
             break;
         }
         default:
@@ -235,7 +235,7 @@ int OnlineRANSAC::update(double sample) {
 /**
  * Resets the algorithm state to initial conditions.
  * Clears all current data and models.
- * 
+ *
  * Implementation details:
  * - Clears sample window
  * - Resets current model
@@ -247,11 +247,11 @@ void OnlineRANSAC::reset() {
 
 /**
  * Returns the current model state.
- * 
+ *
  * @return Current model structure containing:
  *         - Distribution type and parameters if model exists
  *         - Empty model if no valid model exists
- * 
+ *
  * Implementation details:
  * - Returns copy of internal model state
  * - Does not modify algorithm state
@@ -263,15 +263,15 @@ Model OnlineRANSAC::get_model() {
 /**
  * Prints the current fitted model parameters.
  * Displays model type and parameters in human-readable format.
- * 
+ *
  * Implementation details:
  * - Uses fixed precision (6 decimal places)
  * - Shows distribution-specific parameters
  * - Handles undefined models
  * - Supports all configured model types
- * 
+ *
  * @throws out_of_range if unknown model type encountered
- */   
+ */
 void OnlineRANSAC::print_model() {
 
     const Model& model = m_state.model;

@@ -8,7 +8,7 @@ using namespace std;
 
 /**
  * @brief Implementation of the Estimator base class for statistical distribution fitting.
- * 
+ *
  * Provides common statistical utility functions used by derived distribution estimators.
  * All functions are protected to ensure access only through derived classes.
  */
@@ -16,9 +16,9 @@ using namespace std;
 /**
  * Constructor initializing minimum sample size requirement
  * and random number generation facilities.
- * 
+ *
  * @param min_len Minimum number of samples needed for reliable estimation
- * 
+ *
  * Implementation details:
  * - Sets minimum sample size requirement
  * - Initializes random number generator
@@ -30,7 +30,7 @@ Estimator::Estimator(unsigned min_len) : m_min_len(min_len), m_rnd_gen(m_rnd_dev
 /**
  * Virtual destructor implementation.
  * Ensures proper cleanup of derived classes.
- * 
+ *
  * Implementation details:
  * - Allows polymorphic deletion
  * - Required for abstract base class
@@ -40,18 +40,18 @@ Estimator::~Estimator() {
 
 /**
  * Factory method that creates specific distribution estimator instances.
- * 
+ *
  * @param type Distribution type to create, supported types:
  *        - LL3: Three-parameter log-logistic distribution
  *        - LN3: Three-parameter log-normal distribution
  *        - EXP: Two-parameter exponential distribution
  * @return Shared pointer to concrete estimator instance
- * 
+ *
  * Implementation details:
  * - Creates appropriate derived class based on type
  * - Uses make_shared for efficient memory management
  * - Provides polymorphic access through base class pointer
- * 
+ *
  * @throws invalid_argument if type is not supported
  */
 Estimator::Ptr Estimator::create(ModelType type) {
@@ -73,7 +73,7 @@ Estimator::Ptr Estimator::create(ModelType type) {
 /**
  * Generates a single ramdon value from the uniform distribution using
  * the C++ Standard Library's exponential_distribution
- * 
+ *
  * @return Value of the error function erf(x)
  */
 double Estimator::urnd() {
@@ -82,11 +82,11 @@ double Estimator::urnd() {
 
 /**
  * Returns the minimum of two values using a safe comparison.
- * 
+ *
  * @param a First value to compare
  * @param b Second value to compare
  * @return Smaller of the two values
- * 
+ *
  * Implementation details:
  * - Uses ternary operator for efficiency
  * - Handles NaN values according to IEEE 754
@@ -98,10 +98,10 @@ double Estimator::_min(const double& a, const double& b) {
 
 /**
  * Finds the minimum value in a vector of observations.
- * 
+ *
  * @param x Vector of observations
  * @return Minimum value in the vector
- * 
+ *
  * Implementation details:
  * - Uses STL min_element algorithm
  * - Returns NaN for empty vectors
@@ -116,11 +116,11 @@ double Estimator::_min(const vector<double>& samples) {
 
 /**
  * Returns the maximum of two values using a safe comparison.
- * 
+ *
  * @param a First value to compare
  * @param b Second value to compare
  * @return Larger of the two values
- * 
+ *
  * Implementation details:
  * - Uses ternary operator for efficiency
  * - Handles NaN values according to IEEE 754
@@ -132,10 +132,10 @@ double Estimator::_max(const double& a, const double& b) {
 
 /**
  * Finds the maximum value in a vector of observations.
- * 
+ *
  * @param x Vector of observations
  * @return Maximum value in the vector
- * 
+ *
  * Implementation details:
  * - Uses STL max_element algorithm
  * - Returns NaN for empty vectors
@@ -150,10 +150,10 @@ double Estimator::_max(const vector<double>& samples) {
 
 /**
  * Calculates the arithmetic mean of sample data.
- * 
+ *
  * @param x Vector of observations
  * @return Arithmetic mean of the samples
- * 
+ *
  * Implementation details:
  * - Uses STL accumulate for summation
  * - Handles potential numeric overflow
@@ -170,12 +170,12 @@ double Estimator::_mean(const vector<double>& samples) {
 
 /**
  * Calculates the median of sample data.
- * 
+ *
  * @param x Vector of observations (copied for sorting)
  * @return Median value:
  *         - For odd n: middle value
  *         - For even n: average of two middle values
- * 
+ *
  * Implementation details:
  * - Creates sorted copy to preserve original data
  * - Uses two-point average for even-length vectors
@@ -200,10 +200,10 @@ double Estimator::_median(const vector<double>& samples) {
 /**
  * Calculates the error function using a numerical approximation.
  * Implementation based on the Abramowitz and Stegun approximation 7.1.26.
- * 
+ *
  * @param x Input value
  * @return Approximated value of error function erf(x)
- * 
+ *
  * Implementation details:
  * - Uses polynomial approximation for improved accuracy
  * - Valid for all real input values
@@ -235,16 +235,16 @@ double Estimator::_erf(const double& x) {
  * Calculates the inverse error function using Winitzki's approximation.
  * Provides accurate results for statistical computations with relative
  * error less than 0.005.
- * 
+ *
  * @param x Input value in range (-1,1)
  * @return Value y such that erf(y) = x
- * 
+ *
  * Implementation details:
  * - Uses Winitzki's rational approximation method
  * - Valid for input values in (-1,1)
  * - Relative error less than 0.005
  * - Preserves sign symmetry: erfinv(-x) = -erfinv(x)
- * 
+ *
  * Reference:
  * Winitzki, S. (2008). "A handy approximation for the error function and its inverse"
  */
