@@ -10,7 +10,7 @@ nsizes = length(sizes);
 ndists = length(dists);
 
 ntests = 100;
-prevmodel = 1; % we consider that model params are known
+prevmodel = 0; % we consider that model params are known
 save_to_disk = 0; % save all tests (parameters included) to disk
 
 fig = figure;
@@ -35,11 +35,19 @@ for s = 1:nsizes
         for n = 1:ntests
 
             if strcmp(dist, 'EXP2')
-                params  = generate_params([1e-4 76e3], [1e-5 10]);
-                params2 = generate_params([1e-4 76e3], [1e-5 10]);
+                params  = generate_params([1e-3 26e3], [1e-5 5]);
+                params2 = generate_params([26e3 76e3], [5 10]);
 
                 samples = ExponentialRnd(params(1), params(2), 1, sz);
-                [reject1, stat1, thresh1] = ExponentialGof(samples, params(1), params(2), prevmodel);
+
+                if ~prevmodel
+                    [aest,best] = ExponentialFit(samples);
+                else
+                    aest = params(1);
+                    best = params(2);
+                end
+
+                [reject1, stat1, thresh1] = ExponentialGof(samples, aest, best, prevmodel);
                 [reject2, stat2, thresh2] = ExponentialGof(samples, params2(1), params2(2), prevmodel);
 
             elseif strcmp(dist, 'LN3')
@@ -47,7 +55,19 @@ for s = 1:nsizes
                 params2 = generate_params([1e-4 76e3], [-10 10], [1e-3 8]);
 
                 samples = LognormalRnd(params(1), params(2), params(3), 1, sz);
-                [reject1, stat1, thresh1] = LognormalGof(samples, params(1), params(2), params(3), prevmodel);
+
+                if ~prevmodel
+                    [ok, offest, muest, sigmaest] = LognormalFit(samples);
+                    if ~ok
+                        ok = ok;
+                    end
+                else
+                    offest = params(1);
+                    muest = params(2);
+                    sigmaest = params(3);
+                end
+
+                [reject1, stat1, thresh1] = LognormalGof(samples, offest,muest,sigmaest, prevmodel);
                 [reject2, stat2, thresh2] = LognormalGof(samples, params2(1), params2(2), params2(3), prevmodel);
 
             elseif strcmp(dist, 'LL3')
@@ -55,7 +75,19 @@ for s = 1:nsizes
                 params2 = generate_params([1e-4 76e3], [1e-4 32e3], [0.05 0.4]);
 
                 samples = LoglogisticRnd(params(1), params(2), params(3), 1, sz);
-                [reject1, stat1, thresh1] = LoglogisticGoF(samples, params(1), params(2), params(3), prevmodel);
+
+                if ~prevmodel
+                    [aest, best, cest, exitflag] = LoglogisticFit(samples);
+                    if exitflag < 0
+                        exitflag = exitflag;
+                    end
+                else
+                    aest = params(1);
+                    best = params(2);
+                    cest = params(3);
+                end
+
+                [reject1, stat1, thresh1] = LoglogisticGoF(samples, a,b,c, prevmodel);
                 [reject2, stat2, thresh2] = LoglogisticGoF(samples, params2(1), params2(2), params2(3), prevmodel);
 
             else
