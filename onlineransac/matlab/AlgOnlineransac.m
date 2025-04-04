@@ -65,7 +65,7 @@ function [exitbranch,newstate] = AlgOnlineransac(parms,state,rt)
 
     elseif (ns == parms.s)
 
-        [m,g] = ModelAssess(S,ind0,ind1,parms.mtypes); % create new model
+        [m,g] = ModelAssess(S,ind0,ind1,parms.mtypes); % create new model of some of parms.mtypes models
         if (~isempty(m)) && (~isempty(g))
             exitbranch = 2;
         else
@@ -77,7 +77,7 @@ function [exitbranch,newstate] = AlgOnlineransac(parms,state,rt)
         switch parms.modelpreserving
             case 0
 
-                [m,g] = ModelAssess(S,ind0,ind1,parms.mtypes); % create new model
+                [m,g] = ModelAssess(S,ind0,ind1,parms.mtypes); % create new model of some of parms.mtypes models
                 if (~isempty(m)) && (~isempty(g))
                     exitbranch = 2;
                 else
@@ -95,7 +95,7 @@ function [exitbranch,newstate] = AlgOnlineransac(parms,state,rt)
                     % can fail the model coefficients if they are
                     % incompatible with the new sample: not the same as the
                     % sample on which the model was fitted
-                    [~,g] = ModelAssess(S,ind0,ind1,state.model); % assess existing model
+                    [~,g] = ModelAssess(S,ind0,ind1,state.model); % assess previously existing model state.model
                     if ~isempty(g) 
                         newstate.consensus = g; % newstate.model is preserved
                         preserved = 1;
@@ -103,7 +103,7 @@ function [exitbranch,newstate] = AlgOnlineransac(parms,state,rt)
                     end
                 end
                 if ~preserved
-                    [m,g] = ModelAssess(S,ind0,ind1,parms.mtypes); % create new model
+                    [m,g] = ModelAssess(S,ind0,ind1,parms.mtypes); % create new model of some of parms.mtypes models
                     if (~isempty(m)) && (~isempty(g))
                         exitbranch = 2;
                     else
@@ -118,12 +118,12 @@ function [exitbranch,newstate] = AlgOnlineransac(parms,state,rt)
             case 2
 
                 oldmodel = state.model;
-                [m,g] = ModelAssess(S,ind0,ind1,parms.mtypes); % create new model
+                [m,g] = ModelAssess(S,ind0,ind1,parms.mtypes); % create new model of some of parms.mtypes models
                 if (~isempty(m)) && (~isempty(g))
                     exitbranch = 2;
                 else
                     if ~isempty(oldmodel) % oldmodel == state.model
-                        [~,g] = ModelAssess(S,ind0,ind1,state.model); % assess existing model
+                        [~,g] = ModelAssess(S,ind0,ind1,state.model); % assess previously existing model state.model
                         if ~isempty(g) 
                             newstate.consensus = g;
                             exitbranch = 3;

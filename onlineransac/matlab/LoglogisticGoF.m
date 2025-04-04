@@ -1,4 +1,4 @@
-function [reject,stat,thresh]=LoglogisticGoF(x,a,b,c,flagprevmodel)
+function [reject,stat,thresh]=LoglogisticGoF(x,a,b,c,modelnotfromdata)
 % Anderson-Darling test the goodness of fit of the 3-loglogistic (A,B,C) for 
 % the sample XS, from which the very parameters have been deduced, using a 0.05
 % significance level, according to "Goodnes-of-fit techniques", D'Agostino and 
@@ -55,14 +55,8 @@ function [reject,stat,thresh]=LoglogisticGoF(x,a,b,c,flagprevmodel)
 %			smaller is that degree); this works as an alternative to the p-value
 %			that is safe to use as long as we do not assume any linearity or
 %			other particular decreasing profile in STAT.
-% FLAGPREVMODEL -> 1 if the parameters do not come from sample; 0 if they have
+% modelnotfromdata -> 1 if the parameters do not come from sample; 0 if they have
 %                  been calculated from the same sample.
-
-    % consider by default that alpha and beta have been estimated from
-    % samples.
-    if nargin == 4
-        flagprevmodel = 0;
-    end
 
     if (a < 0) 
         error('Invalid loglogistic distr.');
@@ -96,7 +90,7 @@ function [reject,stat,thresh]=LoglogisticGoF(x,a,b,c,flagprevmodel)
     % theoretical and experimental Xs (p. 100)
     sumatoria = sum(([1:n]*2-1).*log(Z)+(2*n+1-2*[1:n]).*log(1-Z)); % page 101, bottom formula
     A2 = -n - (1/n)* sumatoria;
-    if ~flagprevmodel
+    if ~modelnotfromdata
         % do the following only if parameters come from sample:
         A2 = A2*(1+.25/n);  % correction needed because both parameters are deduced from the same sample, table 4.22 case 3
     end
@@ -114,7 +108,7 @@ function [reject,stat,thresh]=LoglogisticGoF(x,a,b,c,flagprevmodel)
                % the book.
     
     % ---- test the hypothesis 
-    if flagprevmodel
+    if modelnotfromdata
         thresh = 2.492; % for the case that parameters do not come from sample; 0.05, p. 105, table 4.2, right tail
     else
         thresh = 0.660; % threshold for the case of parameters coming from sample; 0.05 significance level; page 157, table 4.22, case 3

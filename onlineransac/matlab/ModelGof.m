@@ -1,8 +1,11 @@
-function [reject,stat,thresh] = ModelGof(m,data)
+function [reject,stat,thresh] = ModelGof(m,data,modelnotfromdata)
 % Check the goodness of fit of DATA w.r.t. the given model M.
 %
 % M -> model (see ModelFit()).
-% DATA -> vector of data that have produced that model.
+% DATA -> vector of data that we need to assess whether it is generated 
+%         from M.
+% MODELNOTFROMDATA -> 1 if M comes from knowledge out of the data DATA; 0
+%                     if M has been deduced from the same DATA.
 %
 % REJECT <- 1 if we have to reject the null hypothesis that the model
 %           explains the sample, 0 if we cannot say if it explain the sample
@@ -23,15 +26,15 @@ function [reject,stat,thresh] = ModelGof(m,data)
 
     if strcmp(m.type,'LL3')
 
-        [reject,stat,thresh] = LoglogisticGoF(data,m.coeffs.a,m.coeffs.b,m.coeffs.c,0);
+        [reject,stat,thresh] = LoglogisticGoF(data,m.coeffs.a,m.coeffs.b,m.coeffs.c,modelnotfromdata);
 
     elseif strcmp(m.type,'EXP2')
 
-        [reject,stat,thresh] = ExponentialGof(data,m.coeffs.alpha,m.coeffs.beta);
+        [reject,stat,thresh] = ExponentialGof(data,m.coeffs.alpha,m.coeffs.beta,modelnotfromdata);
 
     elseif strcmp(m.type,'LN3')
 
-        [reject,stat,thresh,~] = LognormalGof(data,m.coeffs.gamma,m.coeffs.mu,m.coeffs.sigma);
+        [reject,stat,thresh,~] = LognormalGof(data,m.coeffs.gamma,m.coeffs.mu,m.coeffs.sigma,modelnotfromdata);
 
     elseif strcmp(m.type,'BERN')
 

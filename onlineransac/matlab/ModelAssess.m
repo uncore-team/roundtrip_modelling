@@ -18,12 +18,12 @@ function [m,g] = ModelAssess(S,ind0,ind1,models)
 
     m = [];
     g = [];
-    if iscell(models)
+    if iscell(models) % --- a list of possible models to find for these data
         nm = length(models);
         for f = 1:nm
             mo = ModelFit(S,ind0,ind1,models{f});
             if mo.defined
-                [reject,stat,thresh] = ModelGof(mo,S);
+                [reject,stat,thresh] = ModelGof(mo,S,0); % model comes from data
                 if ~reject
                     g = struct('stat',stat,'thresh',thresh);
                     m = mo;
@@ -31,11 +31,11 @@ function [m,g] = ModelAssess(S,ind0,ind1,models)
                 end
             end
         end
-    elseif isstruct(models)
+    elseif isstruct(models) % --- just one model, previously deduced, not from these data
         if ~models.defined
             error('Undefined model to assess');
         end
-        [reject,stat,thresh] = ModelGof(models,S);
+        [reject,stat,thresh] = ModelGof(models,S,1); % model does not come from data
         if ~reject
             g = struct('stat',stat,'thresh',thresh);
             m = models;

@@ -1,10 +1,4 @@
-function [reject,stat,thresh] = LognormalGof(x,offset,mu,sigma,flagprevmodel)
-
-    % consider by default that alpha and beta have been estimated from
-    % samples.
-    if nargin == 4
-        flagprevmodel = 0;
-    end
+function [reject,stat,thresh] = LognormalGof(x,offset,mu,sigma,modelnotfromdata)
 
     if (offset < 0) 
         error('Invalid lognormal distr.: offset < 0');
@@ -21,6 +15,8 @@ function [reject,stat,thresh] = LognormalGof(x,offset,mu,sigma,flagprevmodel)
 % % Paper of 2017 in tyrell project /ejecucion/docs/A Compilation of Some Popular Goodness of Fit Tests for Normal Distribution.pdf
 % % They say they take it from D'Agostino p. 122 and table 4.9 in p.127
 % 
+%   Note that this only works for parameters coming from data, apparently.
+%
 %    if (min(x) < offset) % that model cannot assess these data
 %        reject = 1;
 %        stat = NaN;
@@ -80,13 +76,13 @@ function [reject,stat,thresh] = LognormalGof(x,offset,mu,sigma,flagprevmodel)
     sumatoria = sum(([1:n]*2-1).*log(Z)+(2*n+1-2*[1:n]).*log(1-Z)); % page 101, bottom formula
     A2 = -n - (1/n)* sumatoria;
     % do the following if parameters come from sample (D'Agostino table 4.7)
-    if ~flagprevmodel
+    if ~modelnotfromdata
     	A2 = A2 * (1 + 0.75/n + 2.25/n^2);
     end
     stat = A2;
     
     % --- hypothesis test
-    if flagprevmodel
+    if modelnotfromdata
     	thresh = 2.492; % known parameters = previous model (n>=5)
                         % table 4.2 D'Agostino
     else % unknown parameters, estimated from the very sample
