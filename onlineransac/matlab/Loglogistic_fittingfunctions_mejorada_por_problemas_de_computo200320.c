@@ -91,7 +91,7 @@ static int calculatefunctions(double a, double b, double c, const double *sample
 
 		sum2+=1.0/aux;
 
-		sum3+=logxma-2.0*(  log(xma/b)   /*(logxma-logb)*/    /( pow(xma/b,b2invc)   /*xma2invc/b2invc*/+1.0));
+		sum3+=logxma-2.0*(  log(xma/b)   /*(logxma-logb)*/    /( pow(xma/b,invc)   /*xma2invc/b2invc*/+1.0));
 	}
 	sum2=( nn-2.0*b2invc*sum2 )/(bc);
 	sum3=( -nn*(logb+c)+sum3 )/(c*c);
