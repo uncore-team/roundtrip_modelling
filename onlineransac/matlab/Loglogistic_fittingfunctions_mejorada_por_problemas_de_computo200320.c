@@ -91,7 +91,12 @@ static int calculatefunctions(double a, double b, double c, const double *sample
 
 		sum2+=1.0/aux;
 
-		sum3+=logxma-2.0*(  log(xma/b)   /*(logxma-logb)*/    /( pow(xma/b,invc)   /*xma2invc/b2invc*/+1.0));
+		sum3+=logxma-2.0*(  log(xma/b) / ( pow(xma/b,invc) + 1.0)  );
+		/*
+		For xma≈bxma≈b, i.e. xma/b≈1xma/b≈1, logxma - logb may suffer cancellation (subtracting nearly equal values, which likely produces an erroneous result), while log(xma / b) is likely to be more accurate, since computing the quotient first and applying log() once avoids cancellation.
+		
+		Computing xma / b first and then taking the power tends to be more stable, especially if xma and b are of similar magnitude, than doing two separate pow() calls and divide results, which may introduce more rounding error.
+		*/
 	}
 	sum2=( nn-2.0*b2invc*sum2 )/(bc);
 	sum3=( -nn*(logb+c)+sum3 )/(c*c);
