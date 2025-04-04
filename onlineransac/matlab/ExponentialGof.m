@@ -1,12 +1,6 @@
-function [reject,stat,thresh] = ExponentialGof(x,alpha,beta,flagprevmodel)
+function [reject,stat,thresh] = ExponentialGof(x,alpha,beta,modelnotfromdata)
 % Based on D'Agostino p. 141: both parameters unknown. Same corrections as
 % explained in ExponentialFit() apply here.
-
-    % consider by default that alpha and beta have been estimated from
-    % samples.
-    if nargin == 3
-        flagprevmodel = 0;
-    end
 
     if alpha < 0
         error('Invalid alpha for exponential distr.: alpha < 0');
@@ -40,7 +34,7 @@ function [reject,stat,thresh] = ExponentialGof(x,alpha,beta,flagprevmodel)
     A2 = -n - (1/n)*sumatoria;
     % correction: A2 for case 3 (both parameters were deduced from the same sample). 
     % do the following since parameters come from sample (D'Agostino table 4.14)
-    if ~flagprevmodel
+    if ~modelnotfromdata
         A2 = A2 * (1 + 5.4/n - 11/n^2); 
     end
     stat = A2; % this statistic follows certain right-tailed distribution. We can set in
@@ -57,10 +51,10 @@ function [reject,stat,thresh] = ExponentialGof(x,alpha,beta,flagprevmodel)
                % the book.
 
     % ---- test the hypothesis 
-    if flagprevmodel
-    	thresh = 2.492; % known parameters = previous model (n>=5)
+    if modelnotfromdata
+    	thresh = 2.492; % known parameters (n>=5)
                         % table 4.2 D'Agostino
-    else
+    else % parameters come from the very data
         if n > 100
     	    thresh = 1.321; % long samples
         else
