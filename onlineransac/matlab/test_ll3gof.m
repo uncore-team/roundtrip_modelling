@@ -4,10 +4,8 @@ clc;
 close all;
 clear; 
 
-a = 0.1;
-b = 5;
-c = 0.25;
-paramsyes = generate_params([1e-4 76e3], [1e-4 32e3], [0.05 0.45]);
+%paramsyes = generate_params([1e-4 76e3], [1e-4 32e3], [0.05 0.45]);
+paramsyes = [0.1,5,0.25];
 numtests = 100;
 samplesize = 10000;
 
