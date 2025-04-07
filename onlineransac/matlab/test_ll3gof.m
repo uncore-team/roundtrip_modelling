@@ -6,8 +6,28 @@ clear;
 
 %paramsyes = generate_params([1e-4 76e3], [1e-4 32e3], [0.05 0.45]);
 paramsyes = [0.1,5,0.25];
-numtests = 100;
+numtests = 10000;
 samplesize = 10000;
+% Results with that fixed LL3 above:
+%
+% Assuming parameters known:
+% 	Est.alpha (Type I error): 0.048400
+% 	Correct detection: 0.951600
+% 
+% Assuming parameters unknown:
+% 	Est.alpha (Type I error): 0.030300
+% 	Correct detection: 0.969700
+%
+%
+% Results if we use for each test a random LL3:
+%
+% Assuming parameters known:
+% 	Est.alpha (Type I error): 0.046200
+% 	Correct detection: 0.953800
+%
+% Assuming parameters unknown:
+% 	Est.alpha (Type I error): 0.644500
+% 	Correct detection: 0.355500
 
 nosuponiendoparms = 0; % rejects if we take parms from the sample
 suponiendoparms = 0; % rejects if we know true parms
@@ -17,6 +37,8 @@ for t = 1:numtests
    
     fprintf('%d...\n',t);
     
+    paramsyes = generate_params([1e-4 76e3], [1e-4 32e3], [0.05 0.45]);
+
     ds = LoglogisticRnd(paramsyes(1),paramsyes(2),paramsyes(3),1,samplesize);
     hold off;
     [hfreqs,hxs] = hist(ds,50);
