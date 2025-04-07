@@ -4,33 +4,47 @@ function [ok, offs, mu, sigma] = LognormalFit(x)
 
     minsepoffset = 1e-9; % x-offset must be >0
     minx = min(x);
-    [ok,offs] = estimateOffset(x,0); 
+    [ok,offs] = estimateOffset(x,0);
     if ~ok
         offs = NaN;
         mu = NaN;
         sigma = NaN;
         return;
-    end
-    if (minx - offs < minsepoffset)
-        offs = minx - minsepoffset; 
+    elseif ok == 2
+        offs = minx - minsepoffset;
+    else
+        if (minx - offs < minsepoffset)
+            offs = minx - minsepoffset; 
+        end
     end
     if offs > min(x)
         error('invalid lognormal fit');
     end
-    xs = log(x-offs);
-    mu = mean(xs);
-    sigma = std(xs);
+    ds = log(x-offs);
+    mu = mean(ds);
+    sigma = std(ds);
     % or, equivalently:
     %[phat,~] = lognfit(x-offs); % phat(1) is mean, phat(2) is std
 	%mu = phat(1);
 	%sigma = phat(2);
+
+    % figure;
+    % [hfreqs,hxs] = hist(ds,50);
+    % bar(hxs,hfreqs);
+    % hold on;
+    % grid;
+    % xs = linspace(min(ds) * 0.99,max(ds)*1.01,100000);
+    % ys = normpdf(xs,mu,sigma);
+    % ys = ys / trapz(xs,ys) * trapz(hxs,hfreqs);
+    % plot(xs,ys,'b-');
 
 end
 
 function [ok,offset] = estimateOffset(regimen,trace)
 % Calcula el offset segun el MLE de la Lognormal
 % Si no se encuentra cambio de signo al minimizar la funcion para calcular
-% el offset, se elegira el minimo como offset
+% el offset, se devuelve ok == 0; si se encuentra pero luego no es capaz de
+% encontrar el offset mediante optimizacion, se devuelve ok == 2.
 % Esto viene del paper de la lognormal nuestro: ICCRC2012_AGB_JAFM_ACM, que está
 % basado en Cohen, en la modificación MMLE-I, que es la que al final recomiendan
 % tanto para muestras pequeñas como grandes, usando además r = 1. Cohen usa
@@ -74,10 +88,11 @@ function [ok,offset] = estimateOffset(regimen,trace)
     options = optimset('Algorithm', 'levenberg-marquardt'); %'LevenbergMarquardt', 'on');  
     try
         offsets = fzero(f, x0, options);
-        offsets = offsets(offsets < orderedsample(1));
+        offsets = offsets(isreal(offsets) & (offsets < orderedsample(1)));
         numsols = length(offsets);
         if numsols == 0
-            offset = orderedsample(1) - 1e-9;
+           ok = 2;
+           offset = NaN;
         elseif numsols > 1 % several solutions: cohen chooses the one giving expectation closest to sample mean
            mu = zeros(1,numsols);
            s = zeros(1,numsols);
@@ -93,10 +108,11 @@ function [ok,offset] = estimateOffset(regimen,trace)
            [~,in] = min(errsps);
            offset = offsets(in);
         else
-            offset = offsets(1);
+           offset = offsets(1);
         end
     catch errRecord    
-        ok = 0;
+        ok = 2;
+        offset = NaN;
     end
     
 end
