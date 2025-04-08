@@ -7,9 +7,11 @@ clear;
 %paramsyes = generate_params([1e-4 76e3], [1e-4 32e3], [0.05 0.45]);
 paramsyes = [0.1,5,0.25]; % very good estimation of alpha
 paramsyes = [0.1,5,0.05]; % high prob of bad estimation
-numtests = 100;
+paramsyes = [37086.059443685,3720.633937275,0.140459127]; % high prob of bad estimation
+numtests = 1000;
 samplesize = 10000;
 fixedll3 = 0;
+withfigs = 0;
 % Results with that fixed LL3 above:
 %
 % Assuming parameters known:
@@ -39,44 +41,56 @@ fixedll3 = 0;
 suponiendoparms = 0; % rejects if we know true parms
 nosuponiendoparms = 0; % rejects if we take parms from the sample
 historynosupparms = [];
-fi = figure;
+if withfigs
+    fi = figure;
+end
 for t = 1:numtests
-   
-    fprintf('%d...\n',t);
-    
+       
     if ~fixedll3
         paramsyes = generate_params([1e-4 76e3], [1e-4 32e3], [0.05 0.45]);
     end
 
+    fprintf('%d...\tGT: (%.9f,%.9f,%.9f) ',t,paramsyes(1),paramsyes(2),paramsyes(3));
+
     ds = LoglogisticRnd(paramsyes(1),paramsyes(2),paramsyes(3),1,samplesize);
-    hold off;
-    [hfreqs,hxs] = hist(ds,50);
-    bar(hxs,hfreqs);
-    hold on;
-    grid;
+    if withfigs
+        hold off;
+        [hfreqs,hxs] = hist(ds,50);
+        bar(hxs,hfreqs);
+        hold on;
+        grid;
+    end
     
     [reject,stat,thresh] = LoglogisticGoF(ds,paramsyes(1),paramsyes(2),paramsyes(3),1);
+    fprintf('  \trej:%d\n',reject);
     suponiendoparms = suponiendoparms + reject;
-    xs = linspace(0,max(ds)*1.1,1000);
-    ys = LoglogisticPdf(xs,paramsyes(1),paramsyes(2),paramsyes(3));
-    ys = ys / trapz(xs,ys) * trapz(hxs,hfreqs);
-    plot(xs,ys,'b-');
+    if withfigs
+        xs = linspace(0,max(ds)*1.1,1000);
+        ys = LoglogisticPdf(xs,paramsyes(1),paramsyes(2),paramsyes(3));
+        ys = ys / trapz(xs,ys) * trapz(hxs,hfreqs);
+        plot(xs,ys,'b-');
+    end
 
     [ae, be, ce, exitflag] = LoglogisticFit(ds);
-    yes = LoglogisticPdf(xs,ae,be,ce);
-    yes = yes / trapz(xs,yes) * trapz(hxs,hfreqs);
-    plot(xs,yes,'r--');    
+    if withfigs
+        yes = LoglogisticPdf(xs,ae,be,ce);
+        yes = yes / trapz(xs,yes) * trapz(hxs,hfreqs);
+        plot(xs,yes,'r--');    
+    end
     [reject,stat,thresh] = LoglogisticGoF(ds,ae,be,ce,0);
+    fprintf('\tEst:(%.9f,%.9f,%.9f)  \trej:%d\n',ae,be,ce,reject);
     nosuponiendoparms = nosuponiendoparms + reject;
+
     historynosupparms = [historynosupparms ; paramsyes(1),paramsyes(2),paramsyes(3),ae,be,ce,reject];
     
-    drawnow;
+    if withfigs
+        drawnow;
+    end
 end
 
 fprintf('Assuming parameters known:\n');
 fprintf('\tEst.alpha (Type I error): %f\n',suponiendoparms/numtests);
 fprintf('\tCorrect detection: %f\n',1-suponiendoparms/numtests);
-
 fprintf('\n\n');
 
 fprintf('Assuming parameters unknown:\n');
@@ -98,19 +112,54 @@ ylabel('b')
 zlabel('c')
 title('Rejections vs. estimated fit');
 
-figure;
-indsrej = find(historynosupparms(:,7) == 1);
-histrej = historynosupparms(indsrej,1:3);
-plot3(histrej(:,1),histrej(:,2),histrej(:,3),'*r')
-grid
-hold on
-indsnorej = find(historynosupparms(:,7) == 0);
-histnorej = historynosupparms(indsnorej,1:3);
-plot3(histnorej(:,1),histnorej(:,2),histnorej(:,3),'.b')
-xlabel('a')
-ylabel('b')
-zlabel('c')
-title('Rejections vs. actual fit');
+if ~fixedll3
+    figure;
+    indsrej = find(historynosupparms(:,7) == 1);
+    histrej = historynosupparms(indsrej,1:3);
+    plot3(histrej(:,1),histrej(:,2),histrej(:,3),'*r')
+    grid
+    hold on
+    indsnorej = find(historynosupparms(:,7) == 0);
+    histnorej = historynosupparms(indsnorej,1:3);
+    plot3(histnorej(:,1),histnorej(:,2),histnorej(:,3),'.b')
+    xlabel('a')
+    ylabel('b')
+    zlabel('c')
+    title('Rejections vs. actual fit');
+end
+
+% Logistic Regression (Generalized Linear Model)
+% Purpose: Estimate influence of each axis on the binary outcome.
+% Interpretation:
+%
+%   Coefficients tell you the direction and magnitude of influence of each axis.
+%   p-values assess the statistical significance of each predictor.
+% Reference: Dobson & Barnett (2008), An Introduction to Generalized Linear Models.
+mdl = fitglm(historynosupparms(:,1:3),historynosupparms(:,7),...
+             'Distribution', 'binomial',...
+             'VarNames',{'a','b','c','hyprej'});
+disp(mdl.Coefficients);
+
+
+% Linear Discriminant Analysis (LDA)
+% Purpose: Find a linear combination of features that separates the two classes.
+% Interpretation:
+%
+%    The Linear field contains coefficients showing how each axis contributes to class separation.
+% Reference: Fisher (1936), "The Use of Multiple Measurements in Taxonomic Problems", Annals of Eugenics.
+ldaModel = fitcdiscr(historynosupparms(:,1:3),historynosupparms(:,7));
+disp(ldaModel.Coeffs(1,2).Linear)
+
+% Mutual Information
+% Purpose: Non-parametric measure of dependency between feature and class.
+% MATLAB doesn't have mi built-in, but you can find implementations (e.g., FEX: mutualinfo by David Meyer).
+% Reference: Cover & Thomas (2006), Elements of Information Theory.
+%
+% Requires Statistics and Machine Learning Toolbox
+mutualinfo_A = mi(historynosupparms(:,1), historynosupparms(:,7)) 
+mutualinfo_B = mi(historynosupparms(:,2), historynosupparms(:,7)) 
+mutualinfo_C = mi(historynosupparms(:,3), historynosupparms(:,7)) 
+
 
 
 %%
@@ -134,3 +183,4 @@ function params = generate_params(alim, blim, clim)
         params(3) = rnd(clim(1), clim(2));
     end
 end 
+
