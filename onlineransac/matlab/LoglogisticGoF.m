@@ -68,7 +68,7 @@ function [reject,stat,thresh]=LoglogisticGoF(x,a,b,c,modelnotfromdata)
     % ---- transform sample to LL2 (0 offset) and model (a,b,c) into Matlab model (mu,sigma)
     xLL = sort(x); % ordered needed later on
     if (xLL(1) <= a)
-    	reject = 1; % cannot accept a distribution if some value falls below its minimum
+    	reject = 1; % cannot accept a distribution if some value falls below or at its minimum
     	stat = Inf;
 
     	thresh = NaN;
@@ -82,14 +82,15 @@ function [reject,stat,thresh]=LoglogisticGoF(x,a,b,c,modelnotfromdata)
     % if the theoretical model (mu,sigma) is true (p. 101)
     % NOTE: Here, xL must be ordered 
     Z = 1./(1 + exp(-(xL-mu)./s)); % cdf formula for logistic
-    Z = sort(Z); % this may be superfluous, but it does not harm
 
-    % ---- calculate statistic: A2 for case 3 (both parameters were deduced from
-    % the same sample). This statistic measures the squared distance
-    % between experimental and theoretical Zs, and, indirectly, between 
-    % theoretical and experimental Xs (p. 100)
-    sumatoria = sum(([1:n]*2-1).*log(Z)+(2*n+1-2*[1:n]).*log(1-Z)); % page 101, bottom formula
-    A2 = -n - (1/n)* sumatoria;
+    % ---- calculate statistic: A2 
+    A2 = ADstatistic(Z);
+    if isnan(A2) % that model cannot assess these data
+        reject = 1;
+        stat = Inf;
+        thresh = NaN;
+        return;
+    end
     if ~modelnotfromdata
         % do the following only if parameters come from sample:
         A2 = A2*(1+.25/n);  % correction needed because both parameters are deduced from the same sample, table 4.22 case 3

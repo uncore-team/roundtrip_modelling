@@ -59,6 +59,7 @@ function [reject,stat,thresh] = LognormalGof(x,offset,mu,sigma,modelnotfromdata)
 
     xord = sort(x - offset); % go to a non-shifted sample from a non-shifted lognormal
     if (xord(1) < 0) % that model cannot assess these data
+                       % AD test cannot work with samples that produce 0 or 1 Z values
         reject = 1;
         stat = Inf;
         thresh = NaN;
@@ -68,13 +69,13 @@ function [reject,stat,thresh] = LognormalGof(x,offset,mu,sigma,modelnotfromdata)
     m = mean(x);
     w = (logxord - mu) / sigma;
     Z = normcdf(w,0,1);
-
-    % calculate statistic: A2 for case 3 (both parameters were deduced from
-    % the same sample). This statistic measures the squared distance
-    % between experimental and theoretical Zs, and, indirectly, between 
-    % theoretical and experimental Xs (p. 100)
-    sumatoria = sum(([1:n]*2-1).*log(Z)+(2*n+1-2*[1:n]).*log(1-Z)); % page 101, bottom formula
-    A2 = -n - (1/n)* sumatoria;
+    A2 = ADstatistic(Z);
+    if isnan(A2) % that model cannot assess these data
+        reject = 1;
+        stat = Inf;
+        thresh = NaN;
+        return;
+    end
     % do the following if parameters come from sample (D'Agostino table 4.7)
     if ~modelnotfromdata
     	A2 = A2 * (1 + 0.75/n + 2.25/n^2);

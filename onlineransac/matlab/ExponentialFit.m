@@ -1,7 +1,7 @@
 function [alpha,beta] = ExponentialFit(x)
 % Using a simple MLE estimation that forces alpha > 0
 
-    alpha = min(x); % offset
+    alpha = min(x) - eps; % offset; slightly smaller than min(x) to avoid singularities in the AD test (we introduce a slight bias by doing this, but it is acceptable)
     beta = 1.0 / mean(x - alpha); % beta is the reciprocal of the mean (in the book they use beta as the mean)
 
 % % According to D'Agostino, p. 141 but corrected for the final beta to be

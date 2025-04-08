@@ -15,23 +15,18 @@ function [reject,stat,thresh] = ExponentialGof(x,alpha,beta,modelnotfromdata)
 	% ---- calculate the experimental EDF
 
     xsorted = sort(x);
-    if (xsorted(1) < alpha) % that model cannot assess these data
+    mu = 1 / beta; % they use beta in the book when actually they want to use the mean 
+    wsorted = (xsorted - alpha) / mu;
+    Z = 1 - exp(-wsorted);
+
+    % ---- calculate A2 statistic
+    A2 = ADstatistic(Z);
+    if isnan(A2) % that model cannot assess these data
         reject = 1;
         stat = Inf;
         thresh = NaN;
         return;
     end
-    mu = 1 / beta; % they use beta in the book when actually they want to use the mean 
-    wsorted = (xsorted - alpha) / mu;
-    z = 1 - exp(-wsorted);
-    Z = sort(z);
-
-    % --- calculate the A2 statistic: This statistic measures the squared distance
-    % between experimental and theoretical Zs, and, indirectly, between 
-    % theoretical and experimental Xs (p. 100)
-    ind = 1:n;
-    sumatoria = sum((2*ind-1).*log(Z)+(2*n+1-2*ind).*log(1-Z)); % page 101, bottom formula
-    A2 = -n - (1/n)*sumatoria;
     % correction: A2 for case 3 (both parameters were deduced from the same sample). 
     % do the following since parameters come from sample (D'Agostino table 4.14)
     if ~modelnotfromdata
