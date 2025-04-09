@@ -2,7 +2,11 @@ function [ok, offs, mu, sigma] = LognormalFit(x)
 % Fit through MLE a 3-lognormal to the data in X.
 % Taken from our Open-paper (thirdsubmission)
 
-    minsepoffset = 1e-9; % x-offset must be >0
+global TOLROUNDTRIPS
+
+    ConstantsInit();
+
+    minsepoffset = TOLROUNDTRIPS; % x-offset must be >0
     minx = min(x);
     [ok,offs] = estimateOffset(x,0);
     if ~ok
@@ -50,6 +54,9 @@ function [ok,offset] = estimateOffset(regimen,trace)
 % tanto para muestras pequeñas como grandes, usando además r = 1. Cohen usa
 % la misma formulacion de la LLN que en la wikipedia y que matlab: mu, sigma (y gamma ==
 % offset).
+global TOLROUNDTRIPS
+
+    ConstantsInit();
 
 	r = 1;
     orderedsample = sort(regimen);
@@ -57,7 +64,7 @@ function [ok,offset] = estimateOffset(regimen,trace)
     kr = norminv(r/(n+1)); %sqrt(2)*erfinv(2*r/(n+1)-1);
     
     if trace
-        gxs = linspace(orderedsample(r)-10,orderedsample(r)-1e-9,1000000);
+        gxs = linspace(orderedsample(r)-10,orderedsample(r)-TOLROUNDTRIPS,1000000);
         gys = zeros(1,length(gxs));
         for f = 1:length(gys)
 %            gys(f) = MLEfun(orderedsample,gxs(f),n);
@@ -73,7 +80,7 @@ function [ok,offset] = estimateOffset(regimen,trace)
 
 %    f = @(g)(MLEfun(orderedsample,g,n)); 
     f = @(g)(MMLEIfun(orderedsample,g,r,kr,n)); 
-    x0 = [0 orderedsample(r)-1e-9]; % range of search for G
+    x0 = [0 orderedsample(r)-TOLROUNDTRIPS]; % range of search for G
     if sign(MMLEIfun(orderedsample,x0(1),r,kr,n)) == sign(MMLEIfun(orderedsample,x0(end),r,kr,n))
         % in many cases, this occurs: the entire gamma curve is below 0
         %warning('Cannot do the search unless sign(F(minbound)) ~= sign(F(maxbound))');
