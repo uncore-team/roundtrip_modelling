@@ -7,7 +7,7 @@ function v = ModelToCoeffs(m)
 %      always occupy the same size unregarding the model type. The first
 %      element is always a numerical code for the type of the model.
 
-   if ~m.defined
+    if ~m.defined
         error('Undefined model cannot be converted to vector');
     end
 

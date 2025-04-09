@@ -1,5 +1,6 @@
 function m = ModelCreate(ty)
-% Create an undefined model with the given type.
+% Create an undefined model with the given type. Even being undefined, it
+% contains the proper parameter structure.
 %
 % TY -> the type: 'LL3', 'EXP2', 'LN3', 'BERN'
 %

@@ -6,6 +6,10 @@ function [a, b, c, exitflag] = LoglogisticFit(x)
 % exitflag is >= 0, the model can be considered acceptable, even if it is 0
 % (too many iterations)
 
+global TOLROUNDTRIPS
+
+    ConstantsInit();
+
 	minlen=10;
 	tole=1e-9;
 	optimalg='trust-region-reflective'; % 'trust-region-reflective' 'levenberg-marquardt'
@@ -59,7 +63,7 @@ function [a, b, c, exitflag] = LoglogisticFit(x)
     %fprintf('Fitting ll3 with ahat = %.24f, bhat = %.24f, chat = %.24f...\n',x0(1),x0(2),x0(3));
     options=optimset('Display', 'off', 'Algorithm', optimalg, 'Jacobian', 'on', 'TolFun', tole, 'TolX', tole);%, 'Display','iter');
     lb = [eps; eps; minc]; 
-    ub = [minx-eps; inf; maxc];        
+    ub = [minx-TOLROUNDTRIPS; inf; maxc];        
     [xx,RESNORM,RESIDUAL,exitflag,OUTPUT] = lsqnonlin(@(x0) Loglogistic_fittingfunctions(x0,x,lx), x0,lb,ub,options);
     if (exitflag<0)
         return;
