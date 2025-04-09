@@ -3,135 +3,115 @@
 clear all
 close all
 
+logpath = './tests';
+
 dists = { 'EXP2', 'LN3', 'LL3' };
 sizes = [20, 50, 150, 200, 250, 10000];
 
 nsizes = length(sizes);
 ndists = length(dists);
 
-ntests = 100;
-prevmodel = 0; % we consider that model params are known
-save_to_disk = 0; % save all tests (parameters included) to disk
+ntests = 100; % number of tests with different samples
 
-fig = figure;
+f = fopen(sprintf('%s/data.csv', logpath), 'w');
+print_header(f);
 
+tic
+status = 0;
 for s = 1:nsizes
     sz = sizes(s);
 
-    % buffers
-    data = zeros(ndists,2);
-    data2 = zeros(ndists,2);
-
+    for prevmodel = 0:1 % 0: unknown parameters / 1: known parameters
     for d = 1:ndists
         dist = dists{d};
 
-        if save_to_disk
-            f  = fopen(sprintf('./tests/%s_sz%d_true.txt', dist, sz), 'w');
-            print_header(f);
-            f2 = fopen(sprintf('./tests/%s_sz%d_false.txt', dist, sz), 'w');
-            print_header(f2)
-        end
-
-        for n = 1:ntests
+        cont = 0;
+        while cont < ntests
+            cont = cont + 1;
 
             if strcmp(dist, 'EXP2')
-                params  = generate_params([1e-3 26e3], [1e-5 5]);
-                params2 = generate_params([26e3 76e3], [5 10]);
+                params1 = generate_params([1e-3 76e3], [1e-5 10]);
 
-                samples = ExponentialRnd(params(1), params(2), 1, sz);
+                cont2 = 0;
+                while cont2 < ntests
+                    cont2 = cont2 + 1;
 
-                if ~prevmodel
-                    [aest,best] = ExponentialFit(samples);
-                else
-                    aest = params(1);
-                    best = params(2);
+                    params2 = zeros(size(params1));
+                    samples = ExponentialRnd(params1(1), params1(2), 1, sz);
+    
+                    if prevmodel
+                        [reject, stat, thresh] = ExponentialGof(samples, params1(1), params1(2), 1);
+                    else
+                        [params2(1), params2(2)] = ExponentialFit(samples);
+                        % if ~ok
+                        %     print_data(f, -1, dist, prevmodel, params1, params2, -1, -1, -1);
+                        %     continue;
+                        % end
+                        [reject, stat, thresh] = ExponentialGof(samples, params2(1), params2(2), 0);
+                    end
+
+                    print_data(f, cont, cont2, dist, prevmodel, params1, params2, reject, stat, thresh);
                 end
-
-                [reject1, stat1, thresh1] = ExponentialGof(samples, aest, best, prevmodel);
-                [reject2, stat2, thresh2] = ExponentialGof(samples, params2(1), params2(2), prevmodel);
 
             elseif strcmp(dist, 'LN3')
-                params  = generate_params([1e-4 76e3], [-10 10], [1e-3 8]);
-                params2 = generate_params([1e-4 76e3], [-10 10], [1e-3 8]);
+                params1 = generate_params([1e-4 76e3], [-10 10], [1e-3 8]);
 
-                samples = LognormalRnd(params(1), params(2), params(3), 1, sz);
+                cont2 = 0;
+                while cont2 < ntests
+                    cont2 = cont2 + 1;
 
-                if ~prevmodel
-                    [ok, offest, muest, sigmaest] = LognormalFit(samples);
-                    if ~ok
-                        ok = ok;
+                    params2 = zeros(size(params1));
+                    samples = LognormalRnd(params1(1), params1(2), params1(3), 1, sz);
+    
+                    if prevmodel
+                        [reject, stat, thresh] = LognormalGof(samples, params1(1), params1(2), params1(3), 1);
+                    else
+                        [ok, params2(1), params2(2), params2(3)] = LognormalFit(samples);
+                        if ~ok
+                            print_data(f, -1, -1, dist, prevmodel, params1, params2, -1, -1, -1);
+                            continue;
+                        end
+                        [reject, stat, thresh] = LognormalGof(samples, params2(1), params2(2), params2(3), 0);
                     end
-                else
-                    offest = params(1);
-                    muest = params(2);
-                    sigmaest = params(3);
+
+                    print_data(f, cont, cont2, dist, prevmodel, params1, params2, reject, stat, thresh);
                 end
-
-                [reject1, stat1, thresh1] = LognormalGof(samples, offest,muest,sigmaest, prevmodel);
-                [reject2, stat2, thresh2] = LognormalGof(samples, params2(1), params2(2), params2(3), prevmodel);
-
+    
             elseif strcmp(dist, 'LL3')
-                params  = generate_params([1e-4 76e3], [1e-4 32e3], [0.05 0.4]);
-                params2 = generate_params([1e-4 76e3], [1e-4 32e3], [0.05 0.4]);
+                params1 = generate_params([1e-4 76e3], [1e-4 32e3], [0.05 0.4]);
 
-                samples = LoglogisticRnd(params(1), params(2), params(3), 1, sz);
+                cont2 = 0;
+                while cont2 < ntests
+                    cont2 = cont2 + 1;
 
-                if ~prevmodel
-                    [aest, best, cest, exitflag] = LoglogisticFit(samples);
-                    if exitflag < 0
-                        exitflag = exitflag;
+                    params2 = zeros(size(params1));
+                    samples = LoglogisticRnd(params1(1), params1(2), params1(3), 1, sz);
+    
+                    if prevmodel
+                        [reject, stat, thresh] = LoglogisticGoF(samples, params1(1), params1(2), params1(3), 1);
+                    else
+                        [params2(1), params2(2), params2(3), ko] = LoglogisticFit(samples);
+                        if ko
+                            print_data(f, -1, -1, dist, prevmodel, params1, params2, -1, -1, -1);
+                            continue;
+                        end
+                        [reject, stat, thresh] = LoglogisticGoF(samples, params2(1), params2(2), params2(3), 0);
                     end
-                else
-                    aest = params(1);
-                    best = params(2);
-                    cest = params(3);
+
+                    print_data(f, cont, cont2, dist, prevmodel, params1, params2, reject, stat, thresh);
                 end
-
-                [reject1, stat1, thresh1] = LoglogisticGoF(samples, a,b,c, prevmodel);
-                [reject2, stat2, thresh2] = LoglogisticGoF(samples, params2(1), params2(2), params2(3), prevmodel);
-
             else
                 error('wrong distribution!.');
             end
-
-            if save_to_disk
-                print_data(f, params, params, reject1, stat1, thresh1);
-                print_data(f2, params, params2, reject2, stat2, thresh2);
-            end
-
-            data(d,1) = data(d,1) + (1 - reject1)*100/ntests;
-            data(d,2) = data(d,2) + 100 - (1 - reject1)*100/ntests;
-            data2(d,1) = data2(d,1) + reject2*100/ntests;
-            data2(d,2) = data2(d,2) + 100 - reject2*100/ntests;
-
         end
 
-        if save_to_disk
-            fclose(f);
-            fclose(f2);
-        end
+        status = status + 100/nsizes/ndists/2;
+        fprintf('[%4s][sz=%5d]> %3.1f\n', dist, sz, status);
     end
-
-    subplot(2,nsizes,s)
-    bar(data,'stacked');
-    subtitle(['GoF with true params (size=' num2str(sz) ')']);
-    xlabel('Distribution'); ylabel('GoF');
-    legend('Success=reject0', 'Failure=reject1');
-    xticklabels(dists);
-    ylim([0,100]);
-
-    subplot(2,nsizes,nsizes+s)
-    bar(data2,'stacked');
-    subtitle(['GoF with false params (size=' num2str(sz) ')']);
-    xlabel('Distribution'); ylabel('GoF');
-    legend('Success=reject1', 'Failure=reject0');
-    xticklabels(dists);
-    ylim([0,100]);
-
-    % data
-    % data2
+    end
 end
-
+toc
+fclose(f);
 return;
 
 function num = rnd(xmin, xmax)
@@ -155,14 +135,17 @@ function params = generate_params(alim, blim, clim)
 end 
 
 function print_header(f)
-    fprintf(f, '%% p1(1)\t\tp1(2)\t\tp1(3)\t\tp2(1)\t\tp2(2)\t\tp2(3)\t\treject\t\tstat\t\tthresh\n');
+    fprintf(f, 'iter1;iter2;dist;pmodel;p1(1);p1(2);p1(3);p2(1);p2(2);p2(3);reject;stat;thresh\n');
 end
 
-function print_data(f, params, params2, reject, stat, thresh)
-    if numel(params) == 2, params(3) = 0; end
+function print_data(f, iter1, iter2, dist, pmodel, params1, params2, reject, stat, thresh)
+
+    if numel(params1) == 2, params1(3) = 0; end
     if numel(params2) == 2, params2(3) = 0; end
-    fprintf(f, '%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n', ...
-        params(1),  params(2),  params(3), ...
+
+    fprintf(f, '%d;%d;%s;%d;%f;%f;%f;%f;%f;%f;%f;%f;%f\n', ...
+        iter1, iter2, dist, pmodel, ...
+        params1(1), params1(2), params1(3), ...
         params2(1), params2(2), params2(3), ...
         reject, stat, thresh);
 end
