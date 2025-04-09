@@ -8,10 +8,13 @@ clear;
 paramsyes = [0.1,5,0.25]; % very good estimation of alpha
 paramsyes = [0.1,5,0.05]; % high prob of bad estimation
 paramsyes = [37086.059443685,3720.633937275,0.140459127]; % high prob of bad estimation
+
+mtrue = ModelFromCoeffs([0,...
+                         0.1,5,0.25]);
 numtests = 1000;
 samplesize = 10000;
-fixedll3 = 0;
-withfigs = 0;
+fixedtrue = 0;
+withfigs = 1;
 % Results with that fixed LL3 above:
 %
 % Assuming parameters known:
@@ -46,13 +49,14 @@ if withfigs
 end
 for t = 1:numtests
        
-    if ~fixedll3
-        paramsyes = generate_params([1e-4 76e3], [1e-4 32e3], [0.05 0.45]);
+    if ~fixedtrue
+        mtrue = ModelCreateRnd(mtrue.type,'typrnd');
     end
 
-    fprintf('%d...\tGT: (%.9f,%.9f,%.9f) ',t,paramsyes(1),paramsyes(2),paramsyes(3));
+    fprintf('%d... GT-model: ',t);
+    ModelPrint(mtrue);
 
-    ds = LoglogisticRnd(paramsyes(1),paramsyes(2),paramsyes(3),1,samplesize);
+    ds = ModelRnd(mtrue,1,samplesize);
     if withfigs
         hold off;
         [hfreqs,hxs] = hist(ds,50);
@@ -61,67 +65,96 @@ for t = 1:numtests
         grid;
     end
     
-    [reject,stat,thresh] = LoglogisticGoF(ds,paramsyes(1),paramsyes(2),paramsyes(3),1);
-    fprintf('  \trej:%d\n',reject);
+    [reject,~,~] = ModelGof(mtrue,ds,1);
+    fprintf('\trej:%d\n',reject);
     suponiendoparms = suponiendoparms + reject;
     if withfigs
         xs = linspace(0,max(ds)*1.1,1000);
-        ys = LoglogisticPdf(xs,paramsyes(1),paramsyes(2),paramsyes(3));
+        ys = ModelPdf(mtrue,ds,xs);
         ys = ys / trapz(xs,ys) * trapz(hxs,hfreqs);
         plot(xs,ys,'b-');
     end
 
-    [ae, be, ce, exitflag] = LoglogisticFit(ds);
+    mfit = ModelFit(ds,1,length(ds),mtrue.type);
     if withfigs
-        yes = LoglogisticPdf(xs,ae,be,ce);
+        yes = ModelPdf(mfit,ds,xs);
         yes = yes / trapz(xs,yes) * trapz(hxs,hfreqs);
         plot(xs,yes,'r--');    
     end
-    [reject,stat,thresh] = LoglogisticGoF(ds,ae,be,ce,0);
-    fprintf('\tEst:(%.9f,%.9f,%.9f)  \trej:%d\n',ae,be,ce,reject);
+    [reject,stat,thresh] = ModelGof(mfit,ds,0);
+    fprintf('\tES-model:');
+    ModelPrint(mfit);
+    fprintf('\trej:%d\n',reject);
     nosuponiendoparms = nosuponiendoparms + reject;
-
-    historynosupparms = [historynosupparms ; paramsyes(1),paramsyes(2),paramsyes(3),ae,be,ce,reject];
+    coeffstrue = ModelToCoeffs(mtrue);
+    coeffsfit = ModelToCoeffs(mfit);
+    historynosupparms = [historynosupparms ; coeffstrue(2:end),coeffsfit(2:end),reject];
     
     if withfigs
         drawnow;
     end
 end
 
+fprintf('\n\nALPHA (TYPE I ERROR) ESTIMATES:\n');
+
 fprintf('Assuming parameters known:\n');
 fprintf('\tEst.alpha (Type I error): %f\n',suponiendoparms/numtests);
 fprintf('\tCorrect detection: %f\n',1-suponiendoparms/numtests);
-fprintf('\n\n');
+fprintf('\n');
 
 fprintf('Assuming parameters unknown:\n');
 fprintf('\tEst.alpha (Type I error): %f\n',nosuponiendoparms/numtests);
 fprintf('\tCorrect detection: %f\n',1-nosuponiendoparms/numtests);
 
 
+coeffstrue = ModelToCoeffs(mtrue);
+numcoeffs = length(coeffstrue) - 1;
+indrej = numcoeffs * 2 + 1;
+indscoeffstrue = 1:numcoeffs;
+indscoeffsfit = numcoeffs + 1 : numcoeffs * 2;
+
 figure;
-indsrej = find(historynosupparms(:,7) == 1);
-histrej = historynosupparms(indsrej,4:6);
-plot3(histrej(:,1),histrej(:,2),histrej(:,3),'*r')
+indsrej = find(historynosupparms(:,indrej) == 1);
+histrej = historynosupparms(indsrej,indscoeffsfit);
+if numcoeffs == 3
+    plot3(histrej(:,indscoeffstrue(1)),histrej(:,indscoeffstrue(2)),histrej(:,indscoeffstrue(3)),'*r')
+elseif numcoeffs == 2
+    plot(histrej(:,indscoeffstrue(1)),histrej(:,indscoeffstrue(2)),'*r')
+else
+    error('Invalid num of coeffs');
+end
 grid
 hold on
-indsnorej = find(historynosupparms(:,7) == 0);
-histnorej = historynosupparms(indsnorej,4:6);
-plot3(histnorej(:,1),histnorej(:,2),histnorej(:,3),'.b')
+indsnorej = find(historynosupparms(:,indrej) == 0);
+histnorej = historynosupparms(indsnorej,indscoeffsfit);
+if numcoeffs == 3
+    plot3(histnorej(:,indscoeffstrue(1)),histnorej(:,indscoeffstrue(2)),histnorej(:,indscoeffstrue(3)),'.b')
+else
+    plot(histnorej(:,indscoeffstrue(1)),histnorej(:,indscoeffstrue(2)),'.b')
+end
 xlabel('a')
 ylabel('b')
 zlabel('c')
 title('Rejections vs. estimated fit');
 
-if ~fixedll3
+if ~fixedtrue
     figure;
-    indsrej = find(historynosupparms(:,7) == 1);
-    histrej = historynosupparms(indsrej,1:3);
-    plot3(histrej(:,1),histrej(:,2),histrej(:,3),'*r')
+    indsrej = find(historynosupparms(:,indrej) == 1);
+    histrej = historynosupparms(indsrej,indscoeffstrue);
+    if numcoeffs == 3
+        plot3(histrej(:,indscoeffstrue(1)),histrej(:,indscoeffstrue(2)),histrej(:,indscoeffstrue(3)),'*r')
+    else
+        plot(histrej(:,indscoeffstrue(1)),histrej(:,indscoeffstrue(2)),'*r')
+    end
     grid
     hold on
-    indsnorej = find(historynosupparms(:,7) == 0);
-    histnorej = historynosupparms(indsnorej,1:3);
-    plot3(histnorej(:,1),histnorej(:,2),histnorej(:,3),'.b')
+    indsnorej = find(historynosupparms(:,indrej) == 0);
+    histnorej = historynosupparms(indsnorej,indscoeffstrue);
+    if numcoeffs == 3
+        plot3(histnorej(:,indscoeffstrue(1)),histnorej(:,indscoeffstrue(2)),histnorej(:,indscoeffstrue(3)),'.b')
+    else
+        plot(histnorej(:,indscoeffstrue(1)),histnorej(:,indscoeffstrue(2)),'.b')
+    end
     xlabel('a')
     ylabel('b')
     zlabel('c')
@@ -135,7 +168,8 @@ end
 %   Coefficients tell you the direction and magnitude of influence of each axis.
 %   p-values assess the statistical significance of each predictor.
 % Reference: Dobson & Barnett (2008), An Introduction to Generalized Linear Models.
-mdl = fitglm(historynosupparms(:,1:3),historynosupparms(:,7),...
+fprintf('\n\nLOGISTIC REGRESSION (GENERALIZED LINEAR MODEL):\n');
+mdl = fitglm(historynosupparms(:,indscoeffstrue),historynosupparms(:,indrej),...
              'Distribution', 'binomial',...
              'VarNames',{'a','b','c','hyprej'});
 disp(mdl.Coefficients);
@@ -147,7 +181,8 @@ disp(mdl.Coefficients);
 %
 %    The Linear field contains coefficients showing how each axis contributes to class separation.
 % Reference: Fisher (1936), "The Use of Multiple Measurements in Taxonomic Problems", Annals of Eugenics.
-ldaModel = fitcdiscr(historynosupparms(:,1:3),historynosupparms(:,7));
+fprintf('\n\nLINEAR DISCRIMINANT ANALYSIS:\n');
+ldaModel = fitcdiscr(historynosupparms(:,indscoeffstrue),historynosupparms(:,indrej));
 disp(ldaModel.Coeffs(1,2).Linear)
 
 % Mutual Information
@@ -156,31 +191,10 @@ disp(ldaModel.Coeffs(1,2).Linear)
 % Reference: Cover & Thomas (2006), Elements of Information Theory.
 %
 % Requires Statistics and Machine Learning Toolbox
-mutualinfo_A = mi(historynosupparms(:,1), historynosupparms(:,7)) 
-mutualinfo_B = mi(historynosupparms(:,2), historynosupparms(:,7)) 
-mutualinfo_C = mi(historynosupparms(:,3), historynosupparms(:,7)) 
+fprintf('\n\nMUTUAL INFORMATION:\n');
+for f = 1:length(indscoeffstrue)
+    mutualinfo = mi(historynosupparms(:,indscoeffstrue(f)), historynosupparms(:,indrej));
+    fprintf('Mutual info coeff #%d: %f\n',f,mutualinfo);
+end
 
-
-
-%%
-
-function num = rnd(xmin, xmax)
-    num = xmin + (xmax - xmin) * rand();
-end 
-
-function params = generate_params(alim, blim, clim)
-
-    if nargin == 0
-        error('wrong params number!');
-    end
-    if nargin >= 1
-        params(1) = rnd(alim(1), alim(2));
-    end
-    if nargin >= 2
-        params(2) = rnd(blim(1), blim(2));
-    end
-    if nargin == 3
-        params(3) = rnd(clim(1), clim(2));
-    end
-end 
 
