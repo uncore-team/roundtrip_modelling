@@ -7,7 +7,7 @@ function A2 = ADstatistic(Z)
     % theoretical and experimental Xs
     Zsorted = sort(Z);
     if (Zsorted(1) < eps) || (1 - Zsorted(end) < eps) % AD test cannot work with samples that produce 0 or 1 Z values
-        warning('Invalid value for Z -either 0 or 1- in AD test; Z1=%.19f, Zn=%.19f',Zsorted(1),Zsorted(end));
+        %warning('Invalid value for Z -either 0 or 1- in AD test; Z1=%.19f, Zn=%.19f',Zsorted(1),Zsorted(end));
         A2 = NaN;
         return;
     end
