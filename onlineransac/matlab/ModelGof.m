@@ -10,7 +10,9 @@ function [reject,stat,thresh] = ModelGof(m,data,modelnotfromdata)
 % REJECT <- 1 if we have to reject the null hypothesis that the model
 %           explains the sample, 0 if we cannot say if it explain the sample
 %			or not (and therefore we might assume the model is correct).
-% STAT <- value of the statistic for that sample (the smaller, the better)
+% STAT <- value of the statistic for that sample (the smaller, the better).
+%         If it is Inf is because there is no way that model explains the
+%         sample, and it is NaN if the test cannot produce a value.
 % THRESH <- value below which the statistic should have been in order not
 %           to reject the null hypothesis with the 5% significance level, i.e.,
 %			in order to assume the model fits well the data. In case of non-
