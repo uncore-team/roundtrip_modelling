@@ -7,8 +7,8 @@ clc;
 
 % model to tabulate and general experiment parms
 mtrue = ModelCreate('LL3');
-parmsunknown = 1; % 1 - tabulate for unknown parameters that are deduced from the sample; 0 - tabulate for the true params that generate the sample
-samplesizes = 20:10:500; % samples sizes to tabulate
+parmsunknown = 0; % 1 - tabulate for unknown parameters that are deduced from the sample; 0 - tabulate for the true params that generate the sample
+samplesizes = [510:10:1000]; %20:10:500; % samples sizes to tabulate
 numtests = 100000; % monte carlo simulation on that number of samples
 alpha = 0.05; % significance level to tabulate for
 
@@ -119,7 +119,7 @@ if parmsunknown
 else
     namefi = sprintf('%s_parmstrue',namefi);
 end
-save(sprintf('%s.mat',namefi));
+save(sprintf('%s_%d_to_%d.mat',namefi,samplesizes(1),samplesizes(end)));
 
 %%
 
