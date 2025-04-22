@@ -23,8 +23,8 @@ function hfigesc = ScenarioShow(S,tit,regs,models,units)
     subplot(2,1,1);
     hold on;
     grid;
-    plotregs(ts,S,regs);
-    plot(ts,S,'.-');
+    plotregs([1:length(S)],S,regs); % alternative: ts in X, but we can miss visual information
+    plot([1:length(S)],S,'.-'); % alternative: ts in X, but we can miss visual information
     xlabel(units);
     ylabel('round-trip time (ms)');
     title(sprintf('Scenario [%s] - sequence of %d roundtrip times',tit,length(S)));
