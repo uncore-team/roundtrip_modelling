@@ -85,9 +85,23 @@ function [reject,stat,thresh] = LognormalGof(x,offset,mu,sigma,modelnotfromdata)
     % --- hypothesis test
     if modelnotfromdata
     	thresh = 2.492; % known parameters = previous model (n>=5)
-                        % table 4.2 D'Agostino
+                        % table 4.2 D'Agostino (confirmed by MonteCarlo in
+                        % test_tabulategofthrs.m)
     else % unknown parameters, estimated from the very sample
-        thresh = 0.752; % table 4.7, upper tail.
+
+        % the following is D'Agostino but does not work for use since he
+        % assumes only 2 parameters unknown, but we have 3; thus we have
+        % conducted new MonteCarlo experiments to deduce the threshold in
+        % this case
+        %
+        % thresh = 0.752; % table 4.7, upper tail.
+
+
+        % MonteCarlo results in test_tabulategofthrs.m; fitting at the end
+        % section of that script:
+
+        thresh = 1.177616088094618;
+        
     end
     if (stat > thresh) 
         reject=1; % reject

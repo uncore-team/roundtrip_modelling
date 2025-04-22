@@ -111,8 +111,43 @@ function [reject,stat,thresh]=LoglogisticGoF(x,a,b,c,modelnotfromdata)
     % ---- test the hypothesis 
     if modelnotfromdata
         thresh = 2.492; % for the case that parameters do not come from sample; 0.05, p. 105, table 4.2, right tail
+                        % Confirmed by MonteCarlo (test_tabulategofthrs.m)
     else
-        thresh = 0.660; % threshold for the case of parameters coming from sample; 0.05 significance level; page 157, table 4.22, case 3
+
+        % the following is D'Agostino but does not work for use since he
+        % assumes only 2 parameters unknown, but we have 3; thus we have
+        % conducted new MonteCarlo experiments to deduce the threshold in
+        % this case
+        %
+        % thresh = 0.660; % threshold for the case of parameters coming from sample; 0.05 significance level; page 157, table 4.22, case 3
+
+        % MonteCarlo results in test_tabulategofthrs.m; fitting at the end
+        % section of that script:
+
+        if n < 90 % firs part: 5th poly
+
+            parms = [-0.000000000421424;0.000000118010409;-0.000004990075374;-0.001491034210112;0.192700180267995;-0.707864114472733];
+            thresh = parms(1) * n^5 + parms(2) * n^4 + parms(3) * n^3 + parms(4) * n^2 + parms(5) * n + parms(6);
+
+        elseif n < 120 % link between first and second part: linear interpolation
+
+            x1 = 90;
+            y1 = 6.174206416983618; % value of the first part at 90
+            x2 = 120;
+            y2 = 6.237947960378145; % value of the second part at 120
+            thresh = (y2 - y1)/(x2 - x1) * (n - x1) + y1;
+
+        elseif n < 380 % second part: horizontal
+
+            thresh = 6.237947960378145;
+
+        else % third part: decaying linear
+
+            m = -0.002007806860578; % slope of a line that starts at x = 0
+            thresh = m * (n - 380) + 6.237947960378145; % line that starts at n = 380 (second part)
+
+        end
+
     end 
     if (stat > thresh) % equivalently, the p-value is smaller than the significant level
         reject=1; % reject

@@ -29,12 +29,12 @@ mtrue = ModelChangeParms(mtrue,...
 
 [numparms,namparms] = ModelParmsDef(mtrue.type);
 numtests = 1000;
-samplesize = 10000;
-fixedtrue = 0;
+samplesize = 500; % max 500 for Gof thresholds have only be calculated up to that
+fixedtrue = 0; % 0- use random models each time; 1- use always the true model
 withfigs = 1;
 
-suponiendoparms = 0; % rejects if we know true parms
-nosuponiendoparms = 0; % rejects if we take parms from the sample
+suponiendoparms = 0; % # of rejects if we know true parms
+nosuponiendoparms = 0; % # of rejects if we take parms from the sample
 numunfit = 0;
 historynosupparms = [];
 stats = [];
@@ -50,9 +50,9 @@ for t = 1:numtests
     fprintf('%d... GT-model: ',t);
     ModelPrint(mtrue);
 
-    ds = ModelRnd(mtrue,1,samplesize);
+    ds = ModelRnd(mtrue,1,samplesize); % generate sample
     
-    [reject1,stat1,~] = ModelGof(mtrue,ds,1);
+    [reject1,stat1,~] = ModelGof(mtrue,ds,1); % gof with parms coming out of the sample
     fprintf('\trej:%d\n',reject1);
     suponiendoparms = suponiendoparms + reject1;
 
@@ -60,7 +60,7 @@ for t = 1:numtests
     reject2 = 2;
     stat2 = NaN;
     if mfit.defined
-        [reject2,stat2,thresh] = ModelGof(mfit,ds,0);
+        [reject2,stat2,thresh] = ModelGof(mfit,ds,0); % gof with parms coming from the sample
         fprintf('\tES-model:');
         ModelPrint(mfit);
         fprintf('\trej:%d\n',reject2);
