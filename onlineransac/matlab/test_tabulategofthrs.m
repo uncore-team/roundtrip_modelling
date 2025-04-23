@@ -6,9 +6,9 @@ close all;
 clc;
 
 % model to tabulate and general experiment parms
-mtrue = ModelCreate('LL3');
-parmsunknown = 0; % 1 - tabulate for unknown parameters that are deduced from the sample; 0 - tabulate for the true params that generate the sample
-samplesizes = [510:10:1000]; %20:10:500; % samples sizes to tabulate
+mtrue = ModelCreate('LN3');
+parmsunknown = 2; % 1 - tabulate for unknown parameters that are deduced from the sample; 2- same except the offset; 0 - tabulate for the true params that generate the sample
+samplesizes = [20:10:500]; %20:10:500; % samples sizes to tabulate
 numtests = 100000; % monte carlo simulation on that number of samples
 alpha = 0.05; % significance level to tabulate for
 
@@ -19,7 +19,11 @@ usesimplerinterp = 1; % 1 == adjust better to the thresholds in D'Agostino for k
 measurements = cell(1,length(samplesizes));
 results = nan(1,length(samplesizes));
 if parmsunknown
-    nametrace = sprintf('%s (parms from sample)',mtrue.type);
+    if parmsunknown == 2
+        nametrace = sprintf('%s (parms from sample except offset)',mtrue.type);
+    else
+        nametrace = sprintf('%s (parms from sample)',mtrue.type);
+    end
 else
     nametrace = sprintf('%s (parms true)',mtrue.type);
 end
@@ -52,6 +56,12 @@ for f = 1:length(samplesizes)
                 mfit = ModelFit(ds,1,length(ds),mtrue.type); % fit a model to the sample
                 if ~mfit.defined
                     continue;
+                end
+                if (parmsunknown == 2) && ModelHasOffset(mtrue.type)
+                    mfitcoeffs = ModelToCoeffs(mfit);
+                    mtruecoeffs = ModelToCoeffs(mo);
+                    mfitcoeffs(2) = mtruecoeffs(2);
+                    mfit = ModelFromCoeffs(mfitcoeffs);
                 end
                 [~,stat,~] = ModelGof(mfit,ds,0); % get the statistic for that fitting
                 if isinf(stat) || isnan(stat)
@@ -115,7 +125,11 @@ end
 
 namefi = sprintf('matlab_tabulatethresgof_%s',mtrue.type);
 if parmsunknown
-    namefi = sprintf('%s_parmsfromsample',namefi);
+    if parmsunknown == 2
+        namefi = sprintf('%s_parmsfromsampleexceptoffset',namefi);
+    else
+        namefi = sprintf('%s_parmsfromsample',namefi);
+    end
 else
     namefi = sprintf('%s_parmstrue',namefi);
 end
@@ -152,6 +166,8 @@ end
 % My code:
 
 x0 = [1.625;-0.0188;1.4653;-0.0002];
+% extended to 1000:
+x0 = [1.11887690765281 -0.0100950663828462 1.37405116340726 -2.61317137849573e-05];
 fcn1 = @(b,t) b(1).*exp(t.*b(2))+b(3).*exp(t.*b(4));
 [parms, fval] = fminsearch (@ (b) norm(results - fcn1(b, samplesizes)), x0)
 plot(samplesizes,results,'.');
@@ -166,6 +182,7 @@ plot(samplesizes,fcn1(parms,samplesizes),'r.-');
 ft = fittype( 'exp2' );
 opts = fitoptions( 'Method', 'NonlinearLeastSquares' );
 opts.Display = 'Off';
+% extended to 1000: opts.StartPoint = [1.11887690765281 -0.0100950663828462 1.37405116340726 -2.61317137849573e-05];
 opts.StartPoint = [1.62051288611057 -0.0188232367797166 1.46532687005696 -0.000154533652141461];
 % Fit model to data.
 [fitresult, gof] = fit( xData, yData, ft, opts );
