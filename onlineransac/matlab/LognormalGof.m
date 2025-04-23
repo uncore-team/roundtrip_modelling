@@ -96,11 +96,17 @@ function [reject,stat,thresh] = LognormalGof(x,offset,mu,sigma,modelnotfromdata)
         %
         % thresh = 0.752; % table 4.7, upper tail.
 
+        % NOTE: We have tested with test_tabulategofthrs.m that, if we
+        % assume the offset known and the rest of parms taken from the
+        % sample, the threshold follows a straight line on the samplesize,
+        % not a constant: 0.3123 * samplesize + 7.4905
+
 
         % MonteCarlo results in test_tabulategofthrs.m; fitting at the end
         % section of that script:
 
         thresh = 1.177616088094618;
+        % extended to 1000: 1.142624318695782
         
     end
     if (stat > thresh) 

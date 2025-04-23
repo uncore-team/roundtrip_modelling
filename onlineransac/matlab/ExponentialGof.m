@@ -75,6 +75,10 @@ function [reject,stat,thresh] = ExponentialGof(x,alpha,beta,modelnotfromdata)
         parms = [2.984038306464773;-0.040726018747384;1.584140326155763;-0.000317691760535];
         thresh = fcn1(parms,n);
 
+        % extended to n = 1000:
+        % parms = 2.673523823112530  -0.033350836484200   1.486343396622499  -0.000113718363252
+        
+
     end    
     if (stat > thresh) % equivalently, the p-value is smaller than the significant level
         reject=1; % reject

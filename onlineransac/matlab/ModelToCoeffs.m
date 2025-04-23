@@ -5,7 +5,9 @@ function v = ModelToCoeffs(m)
 %
 % V <- row vector with the parameters plus additional NaN elements to
 %      always occupy the same size unregarding the model type. The first
-%      element is always a numerical code for the type of the model.
+%      element is always a numerical code for the type of the model, and
+%      the second and others are the parameters, being always the second
+%      one the offset if the model has that.
 
     if ~m.defined
         error('Undefined model cannot be converted to vector');
