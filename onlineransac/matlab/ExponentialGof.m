@@ -71,14 +71,22 @@ function [reject,stat,thresh] = ExponentialGof(x,alpha,beta,modelnotfromdata)
         % MonteCarlo results in test_tabulategofthrs.m; fitting at the end
         % section of that script:
 
-        fcn1 = @(b,t) b(1).*exp(t.*b(2))+b(3).*exp(t.*b(4));
+        % case of tabulating for samplesizes in [20,500]:
+        fcn = @(b,x) b(1).*exp(x.*b(2))+b(3).*exp(x.*b(4));
         parms = [2.984038306464773;-0.040726018747384;1.584140326155763;-0.000317691760535];
-        thresh = fcn1(parms,n);
+        thresh = fcn(parms,n);
 
-        % extended to n = 1000:
-        % parms = 2.673523823112530  -0.033350836484200   1.486343396622499  -0.000113718363252
+        % case of tabulating for samplesizes in [20,1000]:
+        parms1 = [3.337541849845925;-0.050398072065229;1.732568300148905;-0.000834678723527];
+        parms2 = [0.498655914960363;-0.008387204203383;1.394933022875109;-0.000030326734883];
+        transitionpoint = 200;
+        transitionparm = 1e-1; 
+        fcn1 = @(b,t) b(1).*exp(t.*b(2))+b(3).*exp(t.*b(4)); % model for samples < 200
+        fcn2 = @(b,t) b(1).*exp(t.*b(2))+b(3).*exp(t.*b(4)); % model for samples > 200
+        transweight = @(x) 1 ./ (1 + exp(-transitionparm * (x - transitionpoint))); % transition logistic weight -in [0,1]- that blends both models smoothly
+        fcn = @(b1,b2,x) fcn1(b1,x) .* (1 - transweight(x)) + fcn2(b2,x) .* transweight(x); % blended model
+        thresh = fcn(parms1,parms2,n);
         
-
     end    
     if (stat > thresh) % equivalently, the p-value is smaller than the significant level
         reject=1; % reject

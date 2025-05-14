@@ -5,26 +5,23 @@ clc;
 close all;
 clear; 
 
-% % LL3
-% mtrue = ModelCreate('LL3');
-% mtrue = ModelChangeParms(mtrue,...
-%                          [37086.059443685,3720.633937275,0.140459127]); % high prob of bad alpha
-% % bad alphas when too normal shape (c < 0.3)
-% %                         [0.1,5,0.05]); % high prob of bad alpha
-% %                         [0.1,5,0.25]); % very good estimate of alpha
+% LL3
+mtrue = ModelCreate('LL3');
+mtrue = ModelChangeParms(mtrue,...
+                         [37086.059443685,3720.633937275,0.140459127]); % high prob of bad alpha
+% bad alphas when too normal shape (c < 0.3)
+%                         [0.1,5,0.05]); % high prob of bad alpha
+%                         [0.1,5,0.25]); % very good estimate of alpha
 
 % % LN3
 % mtrue = ModelCreate('LN3');
 % mtrue = ModelChangeParms(mtrue,...
-%                          [40000,10,5]); % good alpha
-% % bad alphas when too normal shape
-% %                         [40000,-10,0.5]); % very bad alpha
+%                          [40000,10,5]); % ignored if we create randomly the model
 
-
-% EXP2
-mtrue = ModelCreate('EXP2');
-mtrue = ModelChangeParms(mtrue,...
-                         [0,0]);
+% % EXP2
+% mtrue = ModelCreate('EXP2');
+% mtrue = ModelChangeParms(mtrue,...
+%                          [0,0]);
 
 
 [numparms,namparms] = ModelParmsDef(mtrue.type);

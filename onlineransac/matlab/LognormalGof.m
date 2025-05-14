@@ -105,8 +105,11 @@ function [reject,stat,thresh] = LognormalGof(x,offset,mu,sigma,modelnotfromdata)
         % MonteCarlo results in test_tabulategofthrs.m; fitting at the end
         % section of that script:
 
-        thresh = 1.177616088094618;
-        % extended to 1000: 1.142624318695782
+        % for the tabulated result using only samplesizes in [20,500]:
+        %thresh = 1.177616088094618;
+
+        % for the tabulated result using samplesizes in [20,1000]:
+        thresh = 1.142624318695783;
         
     end
     if (stat > thresh) 
