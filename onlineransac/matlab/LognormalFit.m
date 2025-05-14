@@ -58,43 +58,99 @@ global TOLROUNDTRIPS
 
     ConstantsInit();
 
+    fprintf('..............\n');
+    
+    corrsample = min(regimen) - 0.1;
+    regimen = regimen - corrsample; % to reduce the magnitude of the values and thus diminish the prob. of numerical noise
+    
 	r = 1;
     orderedsample = sort(regimen);
     n = length(orderedsample);
     kr = norminv(r/(n+1)); %sqrt(2)*erfinv(2*r/(n+1)-1);
     
-    if trace
+    if trace == 1
         gxs = linspace(orderedsample(r)-10,orderedsample(r)-TOLROUNDTRIPS,1000000);
         gys = zeros(1,length(gxs));
         for f = 1:length(gys)
 %            gys(f) = MLEfun(orderedsample,gxs(f),n);
             gys(f) = MMLEIfun(orderedsample,gxs(f),r,kr,n);
         end
-        figure;
-        plot(gxs,gys,'r-','LineWidth',2);
+        hfig = figure;
+        plot(gxs,gys,'r.-');
         hold on;
         grid;
         plot(gxs,zeros(1,length(gxs)),'k-','LineWidth',1);
         title(sprintf('Function to find root ofs (3rd central moment of data = %f, x(1) = %f)',moment(regimen,3),orderedsample(1)));
-    end
-
+        drawnow;
+        pause;
+        close(hfig);
+    end            
+    
 %    f = @(g)(MLEfun(orderedsample,g,n)); 
     f = @(g)(MMLEIfun(orderedsample,g,r,kr,n)); 
-    x0 = [0 orderedsample(r)-TOLROUNDTRIPS]; % range of search for G
-    if sign(MMLEIfun(orderedsample,x0(1),r,kr,n)) == sign(MMLEIfun(orderedsample,x0(end),r,kr,n))
-        % in many cases, this occurs: the entire gamma curve is below 0
+    x0 = [TOLROUNDTRIPS, ...
+          orderedsample(r) - TOLROUNDTRIPS];
+        % Range of search for G
+        
+    f0 = f(x0(1));
+    f1 = f(x0(end));
+
+    if sign(f0) == sign(f1) 
+   
+        % If both are negative, indicating that the crossing should be
+        % around gamma == 0, is because the data is highly normal
+        
+        % If both are positive, indicating that the crossing should be
+        % around data(1), is because the data is highly exponentiel
+        
         %warning('Cannot do the search unless sign(F(minbound)) ~= sign(F(maxbound))');
+        
+        fprintf('--------\n');
+        
         ok = 0;
         offset = NaN;
-        return;
-    end
 
+        if trace == 2
+            gxs = linspace(TOLROUNDTRIPS,orderedsample(1),1000000);
+            gys = zeros(1,length(gxs));
+            for f = 1:length(gys)
+    %            gys(f) = MLEfun(orderedsample,gxs(f),n);
+                gys(f) = MMLEIfun(orderedsample,gxs(f),r,kr,n);
+            end
+            hfig = figure;
+            subplot(1,2,1);
+            plot(gxs,gys,'r.-');        
+            hold on;
+            grid;
+            plot(gxs,zeros(1,length(gxs)),'k-','LineWidth',1);
+            plot(orderedsample(1)*[1 1],[min(gys),max(gys)],'k-');
+            gxs = linspace(x0(1),x0(end),100000);
+            gys = zeros(1,length(gxs));
+            for f = 1:length(gys)
+    %            gys(f) = MLEfun(orderedsample,gxs(f),n);
+                gys(f) = MMLEIfun(orderedsample,gxs(f),r,kr,n);
+            end        
+            plot(gxs,gys,'mo');        
+            title(sprintf('Function to find root ofs (3rd central moment of data = %f, x(1) = %f)',moment(regimen,3),orderedsample(1)));
+            subplot(1,2,2);
+            histogram(regimen,100);
+            grid;
+            drawnow;
+            ok
+            fprintf('press a key - ok 0\n');
+            pause;
+            close(hfig);
+        end
+
+        return;
+    end    
+    
     ok = 1;
 
-    % LevenbergMarquardt
+    % Finding zero
     options = optimset('Algorithm', 'levenberg-marquardt'); %'LevenbergMarquardt', 'on');  
     try
-        offsets = fzero(f, x0, options);
+        [offsets,fval,exitflag,output] = fzero(f, x0, options);
         offsets = offsets(isreal(offsets) & (offsets < orderedsample(1)));
         numsols = length(offsets);
         if numsols == 0
@@ -117,10 +173,41 @@ global TOLROUNDTRIPS
         else
            offset = offsets(1);
         end
+        if ~isnan(offset)
+            offset = offset + corrsample;
+        end
     catch errRecord    
         ok = 2;
         offset = NaN;
+        disp(errRecord)
     end
+
+    if (ok ~= 1) && (trace == 2)
+
+        fprintf('=========\n');
+        
+        gxs = linspace(TOLROUNDTRIPS,orderedsample(1),1000000);
+        gys = zeros(1,length(gxs));
+        for f = 1:length(gys)
+%            gys(f) = MLEfun(orderedsample,gxs(f),n);
+            gys(f) = MMLEIfun(orderedsample,gxs(f),r,kr,n);
+        end
+        hfig = figure;
+        plot(gxs,gys,'r.-');
+        hold on;
+        grid;
+        plot(gxs,zeros(1,length(gxs)),'k-','LineWidth',1);
+        plot(orderedsample(1)*[1 1],[min(gys),max(gys)],'k-');
+        title(sprintf('Function to find root ofs (3rd central moment of data = %f, x(1) = %f)',moment(regimen,3),orderedsample(1)));
+        subplot(1,2,2);
+        histogram(regimen,100);
+        grid;
+        drawnow;
+        ok
+        fprintf('press a key - ok 2\n');
+        pause;
+        close(hfig);
+    end        
     
 end
 
@@ -142,5 +229,8 @@ function ga = MMLEIfun(orderedsample,gamma,r,kr,n)
     lsg = log(orderedsample-gamma);
     sg = sum(lsg);
     ga = log(orderedsample(r)-gamma) - sg/n - kr*sqrt( sum(lsg.*lsg)/n-(sg/n).^2 );
-
+    if ~isreal(ga) % may occur due to the numerical noise
+        ga = real(ga);
+    end
+    
 end

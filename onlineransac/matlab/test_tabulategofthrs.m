@@ -6,9 +6,9 @@ close all;
 clc;
 
 % model to tabulate and general experiment parms
-mtrue = ModelCreate('LN3');
-parmsunknown = 2; % 1 - tabulate for unknown parameters that are deduced from the sample; 2- same except the offset; 0 - tabulate for the true params that generate the sample
-samplesizes = [20:10:500]; %20:10:500; % samples sizes to tabulate
+mtrue = ModelCreate('LL3');
+parmsunknown = 1; % 1 - tabulate for unknown parameters that are deduced from the sample; 2- same except the offset; 0 - tabulate for the true params that generate the sample
+samplesizes = [1010:10:7000]; %[20:10:500]; %510:10:1000; % samples sizes to tabulate
 numtests = 100000; % monte carlo simulation on that number of samples
 alpha = 0.05; % significance level to tabulate for
 
@@ -152,48 +152,82 @@ if ~strcmp(mtrue.type,'EXP2')
     error('Cannot run this section for non-EXP2 distrib');
 end
 % NOTES:
-%   The curve tends to +Inf at 0 and has a more abrupt change in its
-%   decreasing ratio than a/(X^b), ending almost horizontal at around y =
-%   mean(results(29:end)) = 1.3966. For a size >= 300, this can be a
-%   suitable threshold.
-%   With the double exponential it fits ok in the Curve Fitter app:
-%       Startpoint: [1.625;-0.0188;1.4653;-0.0002] (calculated
-%       heuristically -"optimized"- by the app based on characteristics of
+%   The double exponential calculates the initial parms for the search
+%       heuristically -"optimized"- by the matlab app based on characteristics of
 %       the data such as multiple decay speeds, initial values, preliminary 
 %       one-exponential adjustment, derivatives, etc; actually Matlab does
-%       not specify how)
+%       not specify how
 
-% My code:
+close all;
 
-x0 = [1.625;-0.0188;1.4653;-0.0002];
-% extended to 1000:
-x0 = [1.11887690765281 -0.0100950663828462 1.37405116340726 -2.61317137849573e-05];
-fcn1 = @(b,t) b(1).*exp(t.*b(2))+b(3).*exp(t.*b(4));
-[parms, fval] = fminsearch (@ (b) norm(results - fcn1(b, samplesizes)), x0)
-plot(samplesizes,results,'.');
-grid;
-hold on;
-plot(samplesizes,fcn1(parms,samplesizes),'r.-');
+if samplesizes(end) == 500
 
-% The Matlab automatic fitting code (produces the same result):
+    x0 = [1.625;-0.0188;1.4653;-0.0002]; % gathered from heuristics of the matlab fitting app
+    fcn1 = @(b,t) b(1).*exp(t.*b(2))+b(3).*exp(t.*b(4));
+    [parms, fval] = fminsearch (@ (b) norm(results - fcn1(b, samplesizes)), x0)
+    plot(samplesizes,results,'.');
+    grid;
+    hold on;
+    ysfcn = fcn1(parms,samplesizes);
+    plot(samplesizes,ysfcn,'r.-');
+    figure;
+    sss = (ysfcn - results).^2;
+    histogram(sss,50);
+    title(sprintf('residuals (squared errors) - mean %.15f',mean(sss)));
 
-[xData, yData] = prepareCurveData( samplesizes, results );
-% Set up fittype and options.
-ft = fittype( 'exp2' );
-opts = fitoptions( 'Method', 'NonlinearLeastSquares' );
-opts.Display = 'Off';
-% extended to 1000: opts.StartPoint = [1.11887690765281 -0.0100950663828462 1.37405116340726 -2.61317137849573e-05];
-opts.StartPoint = [1.62051288611057 -0.0188232367797166 1.46532687005696 -0.000154533652141461];
-% Fit model to data.
-[fitresult, gof] = fit( xData, yData, ft, opts );
-% Plot fit with data.
-figure( 'Name', 'untitled fit 1' );
-h = plot( fitresult, xData, yData );
-legend( h, 'results vs. samplesizes', 'untitled fit 1', 'Location', 'NorthEast', 'Interpreter', 'none' );
-% Label axes
-xlabel( 'samplesizes', 'Interpreter', 'none' );
-ylabel( 'results', 'Interpreter', 'none' );
-grid on
+elseif samplesizes(end) == 1000
+   
+    % here, samplesizes and results are the concatenation of two
+    % experiments, one from 20 to 500 and one from 510 to 1000. I have
+    % done the concatenation manually in the console using the .mat files of
+    % those experiments.
+
+    % two different sections are visually distinguished; both can be fitted
+    % with double exponentials. The division is at samplesize == 200
+    % if only one section covering everything is desired, the double
+    % exponential can be fit by starting at x0 = [1.11887690765281 -0.0100950663828462 1.37405116340726 -2.61317137849573e-05];
+
+    transitionpoint = 200;
+    inds1 = find(samplesizes <= transitionpoint);
+    inds2 = find(samplesizes >= transitionpoint);
+    ss1 = samplesizes(inds1);
+    rs1 = results(inds1);
+    ss2 = samplesizes(inds2);
+    rs2 = results(inds2);
+    % fitting first part
+    x01 = [2.78176575411404;-0.0418139301125338;1.68968288428376;-0.00074419627955785];
+    fcn1 = @(b,t) b(1).*exp(t.*b(2))+b(3).*exp(t.*b(4));
+    [parms1, fval] = fminsearch (@ (b) norm(rs1 - fcn1(b, ss1)), x01)
+    figure;
+    grid;
+    hold on;
+    plot(ss1,rs1,'b.');
+    xs1 = linspace(ss1(1),ss1(end),1000);
+    ysfcn1 = fcn1(parms1,xs1);
+    plot(xs1,ysfcn1,'r-','LineWidth',2);
+    % fitting second part
+    x02 = [0.916029848965478;-0.0122508889315835;1.41972515320634;-5.26936347849917e-05];
+    fcn2 = @(b,t) b(1).*exp(t.*b(2))+b(3).*exp(t.*b(4));
+    [parms2, fval] = fminsearch (@ (b) norm(rs2 - fcn2(b, ss2)), x02)
+    plot(ss2,rs2,'c.');
+    xs2 = linspace(ss2(1),ss2(end),1000);
+    ysfcn2 = fcn2(parms2,xs2);
+    plot(xs2,ysfcn2,'m-','LineWidth',2);
+    % smoothed transition (continuous - C^inf) through a logistic function
+    % of the weigths centered at the transition point
+    k = 1e-1; % best parameter for the logistic to bend both curves only locally
+    transweight = @(x) 1 ./ (1 + exp(-k * (x - transitionpoint)));
+    transfunc = @(b1,b2,x) fcn1(b1,x) .* (1 - transweight(x)) + fcn2(b2,x) .* transweight(x);
+    xst = linspace(samplesizes(1),samplesizes(end),10000);
+    yst = transfunc(parms1,parms2,xst);
+    plot(xst,yst,'g-');
+    
+
+else
+    error('unimplemented samplesizes');
+end
+
+
 
 %% --- tries to fit the LN3-parms-from-sample results
 
@@ -248,21 +282,21 @@ plot(xs2,ys2fit,'r.-');
 inds1 = find(samplesizes < 120);
 xs1 = samplesizes(inds1) - samplesizes(1); % shift data to make x_0 = 0
 ys1 = results(inds1) - results(1); % shift data to make y(0) = 0
-fv = horizfit - results(1); % final value (forced) for the 1st order response
-indm = round(length(xs1)/2); % middle point taken to calc an initial guess
-xm = xs1(indm);
-ym = ys1(indm);
-bstart = -log(-ym/fv+1)/xm % fit deterministically a 1st order with that middle point and final value
-fcn1 = @(b,x) fv * b(1) * (1 - exp(-b(2) * x)); % forced to end at fv
-[parms, fval] = fminsearch (@ (b) norm(ys1 - fcn1(b,xs1)), [1;bstart]) % fit a better 1st order, but it will not end at fv exactly (it cannot be forced because fv is at x = Inf, not at x = inds1(end))
-
 plot(xs1 + samplesizes(1),ys1 + results(1),'o');
 grid; 
 hold on; 
-plot(xs1(end) + samplesizes(1),fv + results(1),'m*');
-plot(xs1 + samplesizes(1),fcn1(parms,xs1) + results(1),'r:.');
+% % fitting of a 1st order
+% fv = horizfit - results(1); % final value (forced) for the 1st order response
+% indm = round(length(xs1)/2); % middle point taken to calc an initial guess
+% xm = xs1(indm);
+% ym = ys1(indm);
+% bstart = -log(-ym/fv+1)/xm % fit deterministically a 1st order with that middle point and final value
+% fcn1 = @(b,x) fv * b(1) * (1 - exp(-b(2) * x)); % forced to end at fv
+% [parms, fval] = fminsearch (@ (b) norm(ys1 - fcn1(b,xs1)), [1;bstart]) % fit a better 1st order, but it will not end at fv exactly (it cannot be forced because fv is at x = Inf, not at x = inds1(end))
+% plot(xs1(end) + samplesizes(1),fv + results(1),'m*');
+% plot(xs1 + samplesizes(1),fcn1(parms,xs1) + results(1),'r:.');
 
-% first part alternative - 5th deg poly
+% fitting a 5th deg poly
 %
 % f(x) = p1*x^5 + p2*x^4 + p3*x^3 + p4*x^2 + p5*x + p6
 % 
