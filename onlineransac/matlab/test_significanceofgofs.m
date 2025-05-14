@@ -109,8 +109,8 @@ end
 fprintf('\n\nALPHA (TYPE I ERROR) ESTIMATES:\n');
 
 fprintf('Assuming parameters known:\n');
-fprintf('\tEst.alpha (Type I error): %f\n',suponiendoparms/numtests);
-fprintf('\tCorrect detection: %f\n',1-suponiendoparms/numtests);
+fprintf('\tEst.alpha (Type I error): %f\n',suponiendoparms/(numtests - numunfit));
+fprintf('\tCorrect detection: %f\n',1-suponiendoparms/(numtests - numunfit));
 fprintf('\n');
 
 fprintf('Assuming parameters unknown (undefined: %d; %.2f%%):\n',numunfit,numunfit/numtests*100);
