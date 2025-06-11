@@ -1,0 +1,48 @@
+[05/06/25]
+
+-Estoy retocando los fits para ser más robustos (uso test_significanceofgofs.m) y luego tengo que recalcular los thresholds de los gof (test_tabulate...). Voy ahora mismo retocando el EXP2 para ser más robusto con mediana y ya he preparado el LN3 para tirar del EXP2 internamente (pero tengo que revisar ahí que uso robustez sin ser necesaria).
+
+TODO:
+
+[DONE 10/06/25] -Mirar que no se está usando de forma coherente el parámetro beta en exp2fit y en exp2gof; en el primero es la media, creo, y qn eel segundo 1/media. Además, mirar en exp2fit por qué no estimamos alpha según d'agostino p. 141 o bien p. 245, y ver si se puede, y entonces rehacer todo el tabulate.
+
+[DONE 10/06/25] -Tengo que mirar cómo estimar de forma robusta el fit de la EXP2, quizás haciendo un test de hipótesis sobre la probabvilidad de que la media esté más de 1/ln2 veces más lejos de la mediana (ver docs/if i have two gaussian distributions with differen.pdf y docs/teorema central del limite para la mediana pagina 255 Miller I. Freund's Mathematical Statistics with Applications 8ed 2014.pdf). 
+
+[DONE 10/06/25] -Una vez hecho eso, mirar si tiene sentido que la EXP2 devuelva algún flag de no fitting. Si es que sí, meterlo igujal en la LN3 y la LL3.
+
+[DONE 10/06/25] -Una vez hecho eso probar a ver cómo sale el test_significance... para la EXP2 (intentando que salga parecido al 5%) y el test_tabulate de la EXP2 para sus nuevos thresholds.
+
+-Una vez con la EXP2 resuelta, tengo que reusarla en el fit de la LN3, que ya lo tengo medio montado pero tengo dentro algunas operaciones de robustez que probablemente ya no hagan falta porque la EXP2 es más robusta, como el quitar los outliers derechos, por ejemplo. 
+
+-Luego tengo que probar el test_significance de la LN3 para conseguir sus nuevos thresholds, particularmente para muestras grandes.
+
+-Finalmente haría falta completar el test_significance de la LL3.
+
+-Mirar lo que me ha mandado Carmen del 26 de mayo.
+
+-Y pensarse si se puede hacer una versión reducida de todo esto sin tanta fórmula para otra revista mejor que el sensors, compatible con que esto vaya al sensors.
+
+
+[02/05/25]
+
+-He terminado los montecarlo de los thresholds hasta muestras de 1000, pero en algunos escenarios hay muestras de más longitud y además vicente ha hecho unas gráficas para muestras muy mayores y sale que los actuales thresholds empiezan a fallar más o menos en el rango 1000-7000
+
+-Vicente está lanzando en el IMECH el script de montecarlo para ese rango.
+
+-Cuando lo tenga, tengo que volver a ajustar las curvas de thresholds para las tres distribuciones. Actualmente en el código *gof.m de las tres tengo puesto el de muestras de hasta 1000 en EXP2 y LN3 y el de muestras hasta 500 en el de LL3 (no he llegado a ajustarle los datos de hasta 1000, aunque los tengo, porque he hecho una prueba puntual de 7000 y el dato varía mucho, por lo que mejor esperarse a tener los de Vicente para hacer bien el ajuste).
+
+-Se podría hacer un ajuste con procesos gaussianos, pero complicaría la cosa y el cálculo online y no sé si sería una aproximación de mínimos cuadrados.
+
+
+[22/04/25]
+
+-En el proceso de pasar el código del paper de Trazegnies a C++, Vicente notó que no estimaba demasiado bien; de hecho, hicimos pruebas para estimar estadísticamente el alpha (significancia) y salían fatal.
+-Tras estudiarlo mucho, resultaba que estábamos usando unos thresholds para los gof (LL3, LN3 y EXP2) incorrectos en el caso de que los parms se estimen desde la propia muestra: los D'Agostino se basaban en un parámetro menos, pero nosotros tenemos el offset. 
+-He hecho el test_tabulate...m para estimar de nuevo los thresholds igual que D'Agostino pero para nuestro caso, y ahora ya los alpha van bien.
+-Se necesita hacer este tabulate para tamaños de muestra desde 20 hasta 1000 con paso de 10 si queremos obtener los mismos thresholds que D'Agostino en el caso de todos los parámetros conocidos de antemano (no obtenidos de la muestra). Si nos quedamos en 500 no se aproximan bien del todo.
+-El resultado en los experimentos del stateless es que ahora se rechazan mucho menos los modelos que antes. Esto tiene varios cons/pros:
+	-Modelamos en menos veces y cuando hay muchas muestras en el modelo eso significa que ajusta bastante bien al escenario.
+	-Salen modelos para regímenes más largos (incluso hasta 2000 muestras)
+	-Por contra, al no rechazar modelos tanto, resulta que:
+		-Casi no da oportunidad a usar los LN3 y EXP2. La LL3 modela casi todo.
+		-Es posible -aún no lo he comprobado- que prediga peor.
