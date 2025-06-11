@@ -1,13 +1,8 @@
 function [reject,stat,thresh] = ExponentialGof(x,alpha,beta,modelnotfromdata)
-% Based on D'Agostino p. 141: both parameters unknown. Same corrections as
-% explained in ExponentialFit() apply here.
+% Based on D'Agostino p. 141: both parameters unknown. 
+% See ExponentialFit()
 
-    if alpha < 0
-        error('Invalid alpha for exponential distr.: alpha < 0');
-    end
-    if beta <= 0
-        error('Invalid beta for exponential distr.: beta <= 0');
-    end
+    ExponentialCheckParms(alpha,beta);
 
     n = numel(x);
     x = reshape(x,1,n); % force X is a row vector
@@ -15,8 +10,7 @@ function [reject,stat,thresh] = ExponentialGof(x,alpha,beta,modelnotfromdata)
 	% ---- calculate the experimental EDF
 
     xsorted = sort(x);
-    mu = 1 / beta; % they use beta in the book when actually they want to use the mean 
-    wsorted = (xsorted - alpha) / mu;
+    wsorted = (xsorted - alpha) / beta;
     Z = 1 - exp(-wsorted);
 
     % ---- calculate A2 statistic
@@ -52,40 +46,13 @@ function [reject,stat,thresh] = ExponentialGof(x,alpha,beta,modelnotfromdata)
                         % experiments (test_tabulategofthrs.m)
     else % parameters come from the very data
 
-        % the following is D'Agostino but does not work for use since he
-        % assumes only one parameter unknown, but we have 2; thus we have
+        % the following is D'Agostino and it does work even when it 
+        % assumes only one parameter unknown while we have 2; we have
         % conducted new MonteCarlo experiments to deduce the threshold in
-        % this case
-        %
-        % if n > 100
-    	%     thresh = 1.321; % long samples
-        % else
-    	%     ns = [5,10,15,20,25,50,100]; % lengths listed in D'Agostino table 4.15
-    	%     ts = [0.725,0.920,1.009,1.062,1.097,1.197,1.250];
-    	%     thresh = spline(ns,ts,n); % best interpolation since points are non-linear
-    			% 					    % do not include the point at > 100 since it is
-    			% 					    % too far and distorts the spline strongly
-        % end
-
-
-        % MonteCarlo results in test_tabulategofthrs.m; fitting at the end
-        % section of that script:
-
-        % case of tabulating for samplesizes in [20,500]:
-        fcn = @(b,x) b(1).*exp(x.*b(2))+b(3).*exp(x.*b(4));
-        parms = [2.984038306464773;-0.040726018747384;1.584140326155763;-0.000317691760535];
-        thresh = fcn(parms,n);
-
-        % case of tabulating for samplesizes in [20,1000]:
-        parms1 = [3.337541849845925;-0.050398072065229;1.732568300148905;-0.000834678723527];
-        parms2 = [0.498655914960363;-0.008387204203383;1.394933022875109;-0.000030326734883];
-        transitionpoint = 200;
-        transitionparm = 1e-1; 
-        fcn1 = @(b,t) b(1).*exp(t.*b(2))+b(3).*exp(t.*b(4)); % model for samples < 200
-        fcn2 = @(b,t) b(1).*exp(t.*b(2))+b(3).*exp(t.*b(4)); % model for samples > 200
-        transweight = @(x) 1 ./ (1 + exp(-transitionparm * (x - transitionpoint))); % transition logistic weight -in [0,1]- that blends both models smoothly
-        fcn = @(b1,b2,x) fcn1(b1,x) .* (1 - transweight(x)) + fcn2(b2,x) .* transweight(x); % blended model
-        thresh = fcn(parms1,parms2,n);
+        % this case in test_tabulategofthrs.m and got the same threshold
+        % for sample sizes ranging from 20 to 10000.
+        
+        thresh = 1.321; 
         
     end    
     if (stat > thresh) % equivalently, the p-value is smaller than the significant level

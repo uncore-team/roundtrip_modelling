@@ -1,14 +1,19 @@
 % Tabulate the threshold for the GoF experimentally for different sample
 % sizes.
 
+% NOTE: To reduce the heat and consumption of the computer, if it has 24
+% cores, being 16-23 of non-high performance, we can force in linux to use
+% them only this way: taskset -c 16-23 /APLICACIONES/Matlab2023b/bin/matlab
+% And them limit to 8 the number of cores to use in matlab with: maxNumCompThreads(8)
+
 clear;
 close all;
 clc;
 
 % model to tabulate and general experiment parms
-mtrue = ModelCreate('LL3');
+mtrue = ModelCreate('LN3');
 parmsunknown = 1; % 1 - tabulate for unknown parameters that are deduced from the sample; 2- same except the offset; 0 - tabulate for the true params that generate the sample
-samplesizes = [1010:10:7000]; %[20:10:500]; %510:10:1000; % samples sizes to tabulate
+samplesizes = [20:10:2000, 2020:100:10000, 10000]; %[20:10:500]; %510:10:1000; % samples sizes to tabulate
 numtests = 100000; % monte carlo simulation on that number of samples
 alpha = 0.05; % significance level to tabulate for
 
@@ -146,11 +151,10 @@ ylabel('threshold for gof');
 subplot(1,2,2);
 drawHisto(results,'histogram','threshold for gof');
 
-%%  --- tries to fit the EXP2-parms-from-sample results
+return;
 
-if ~strcmp(mtrue.type,'EXP2')
-    error('Cannot run this section for non-EXP2 distrib');
-end
+%%  --- tries to model the EXP2-parms-from-sample in several ways
+
 % NOTES:
 %   The double exponential calculates the initial parms for the search
 %       heuristically -"optimized"- by the matlab app based on characteristics of
@@ -159,8 +163,9 @@ end
 %       not specify how
 
 close all;
+modetofit = '2doubleexp'; % '1doubleexp', '2doubleexp'
 
-if samplesizes(end) == 500
+if strcmp(modetofit,'1doubleexp')
 
     x0 = [1.625;-0.0188;1.4653;-0.0002]; % gathered from heuristics of the matlab fitting app
     fcn1 = @(b,t) b(1).*exp(t.*b(2))+b(3).*exp(t.*b(4));
@@ -170,61 +175,80 @@ if samplesizes(end) == 500
     hold on;
     ysfcn = fcn1(parms,samplesizes);
     plot(samplesizes,ysfcn,'r.-');
+    
     figure;
     sss = (ysfcn - results).^2;
     histogram(sss,50);
     title(sprintf('residuals (squared errors) - mean %.15f',mean(sss)));
 
-elseif samplesizes(end) == 1000
+elseif strcmp(modetofit,'2doubleexp')
    
-    % here, samplesizes and results are the concatenation of two
-    % experiments, one from 20 to 500 and one from 510 to 1000. I have
-    % done the concatenation manually in the console using the .mat files of
-    % those experiments.
+    funtomin = @(x) twodoubleexpsplittedformin(samplesizes,results,x);
+    minx = samplesizes(floor(length(samplesizes)*0.01));
+    maxx = samplesizes(ceil(length(samplesizes)*0.25));
+    
+    % find the optimum transition point between both exponentials by
+    % minimizing the resulting mean square error between the exponentials
+    % and the data
 
-    % two different sections are visually distinguished; both can be fitted
-    % with double exponentials. The division is at samplesize == 200
-    % if only one section covering everything is desired, the double
-    % exponential can be fit by starting at x0 = [1.11887690765281 -0.0100950663828462 1.37405116340726 -2.61317137849573e-05];
+    % figure;
+    % hold on;
+    % grid;
+    % for f = minx:maxx
+    %     fval = funtomin(f);
+    %     plot(f,fval,'r.');
+    % end
+    
+    options = optimset('Display','iter');
+    x = fminbnd(funtomin,...
+                minx,...
+                maxx,...
+                options);
+    transitionpoint = round(x);
+    [sss,parms1,parms2,k] = twodoubleexpsplitted(samplesizes,results,transitionpoint);
+    format long;
+    fprintf('Transition point at samplesize = %d\n',transitionpoint);
+    fprintf('Transition welding ct: %f\n',k);
+    fprintf('parms1: \n');
+    disp(parms1);
+    fprintf('parms2: \n');
+    disp(parms2);
 
-    transitionpoint = 200;
-    inds1 = find(samplesizes <= transitionpoint);
-    inds2 = find(samplesizes >= transitionpoint);
-    ss1 = samplesizes(inds1);
-    rs1 = results(inds1);
-    ss2 = samplesizes(inds2);
-    rs2 = results(inds2);
-    % fitting first part
-    x01 = [2.78176575411404;-0.0418139301125338;1.68968288428376;-0.00074419627955785];
-    fcn1 = @(b,t) b(1).*exp(t.*b(2))+b(3).*exp(t.*b(4));
-    [parms1, fval] = fminsearch (@ (b) norm(rs1 - fcn1(b, ss1)), x01)
     figure;
     grid;
     hold on;
+    % first part
+    inds1 = find(samplesizes <= transitionpoint);
+    ss1 = samplesizes(inds1);
+    rs1 = results(inds1);
+    fcn1 = @(b,t) b(1).*exp(t.*b(2))+b(3).*exp(t.*b(4));
     plot(ss1,rs1,'b.');
     xs1 = linspace(ss1(1),ss1(end),1000);
     ysfcn1 = fcn1(parms1,xs1);
     plot(xs1,ysfcn1,'r-','LineWidth',2);
-    % fitting second part
-    x02 = [0.916029848965478;-0.0122508889315835;1.41972515320634;-5.26936347849917e-05];
+    % second part
+    inds2 = find(samplesizes > transitionpoint);
+    ss2 = samplesizes(inds2);
+    rs2 = results(inds2);
     fcn2 = @(b,t) b(1).*exp(t.*b(2))+b(3).*exp(t.*b(4));
-    [parms2, fval] = fminsearch (@ (b) norm(rs2 - fcn2(b, ss2)), x02)
     plot(ss2,rs2,'c.');
     xs2 = linspace(ss2(1),ss2(end),1000);
     ysfcn2 = fcn2(parms2,xs2);
     plot(xs2,ysfcn2,'m-','LineWidth',2);
     % smoothed transition (continuous - C^inf) through a logistic function
     % of the weigths centered at the transition point
-    k = 1e-1; % best parameter for the logistic to bend both curves only locally
     transweight = @(x) 1 ./ (1 + exp(-k * (x - transitionpoint)));
     transfunc = @(b1,b2,x) fcn1(b1,x) .* (1 - transweight(x)) + fcn2(b2,x) .* transweight(x);
     xst = linspace(samplesizes(1),samplesizes(end),10000);
     yst = transfunc(parms1,parms2,xst);
-    plot(xst,yst,'g-');
-    
+    plot(xst,yst,'k--','LineWidth',3);
+
+    figure;
+    histogram(sss,50);
+    title(sprintf('residuals (squared errors) - mean %.15f',mean(sss)));
 
 else
-    error('unimplemented samplesizes');
+    error('unimplemented exp threshold modelling for those samplesizes');
 end
 
 
@@ -388,3 +412,50 @@ for n = xs
     ys = [ys,thresh];
 end
 plot(xs,ys,'g-','LineWidth',2);
+
+
+%% AUXILIARY FUNCTIONS
+
+function [sss,parms1,parms2,k] = twodoubleexpsplitted(samplesizes,results,tpoint)
+
+    % here, samplesizes and results are the concatenation of two
+    % experiments, in the original tests, one from 20 to 500 and one from 510 to 1000. I have
+    % done the concatenation manually in the console using the .mat files of
+    % those experiments.
+
+    % two different sections are visually distinguished; both can be fitted
+    % with double exponentials. The division in the original tests was at samplesize == 200
+    % if only one section covering everything is desired, the double
+    % exponential can be fit by starting at x0 = [1.11887690765281 -0.0100950663828462 1.37405116340726 -2.61317137849573e-05];
+
+    transitionpoint = round(tpoint);
+    inds1 = find(samplesizes <= transitionpoint);
+    inds2 = find(samplesizes > transitionpoint);
+    ss1 = samplesizes(inds1);
+    rs1 = results(inds1);
+    ss2 = samplesizes(inds2);
+    rs2 = results(inds2);
+    % fitting first part
+    x01 = [2.78176575411404;-0.0418139301125338;1.68968288428376;-0.00074419627955785];
+    fcn1 = @(b,t) b(1).*exp(t.*b(2))+b(3).*exp(t.*b(4));
+    [parms1, ~] = fminsearch (@ (b) norm(rs1 - fcn1(b, ss1)), x01);
+    % fitting second part
+    x02 = [0.916029848965478;-0.0122508889315835;1.41972515320634;-5.26936347849917e-05];
+    fcn2 = @(b,t) b(1).*exp(t.*b(2))+b(3).*exp(t.*b(4));
+    [parms2, ~] = fminsearch (@ (b) norm(rs2 - fcn2(b, ss2)), x02);
+    % smoothed transition (continuous - C^inf) through a logistic function
+    % of the weigths centered at the transition point
+    k = 1e-1; % a parameter for the logistic to bend both curves only locally
+    transweight = @(x) 1 ./ (1 + exp(-k * (x - transitionpoint)));
+    transfunc = @(b1,b2,x) fcn1(b1,x) .* (1 - transweight(x)) + fcn2(b2,x) .* transweight(x);
+    ysfcn = transfunc(parms1,parms2,samplesizes);
+    sss = (ysfcn - results).^2;
+
+end
+
+function meansss = twodoubleexpsplittedformin(samplesizes,results,transitionpoint)
+    
+    [sss,~,~,~] = twodoubleexpsplitted(samplesizes,results,transitionpoint);
+    meansss = mean(sss);
+
+end

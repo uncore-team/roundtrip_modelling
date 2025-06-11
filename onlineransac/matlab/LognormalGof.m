@@ -1,12 +1,6 @@
 function [reject,stat,thresh] = LognormalGof(x,offset,mu,sigma,modelnotfromdata)
 
-    if (offset < 0) 
-        error('Invalid lognormal distr.: offset < 0');
-    end
-    
-    if (sigma <= 0) 
-        error('Invalid lognormal distr.: sigma <= 0');
-    end
+    LognormalCheckParms(offset,mu,sigma);
 
     n = numel(x);
     x = reshape(x,1,n); % force X is a row vector
@@ -54,6 +48,7 @@ function [reject,stat,thresh] = LognormalGof(x,offset,mu,sigma,modelnotfromdata)
 %     else
 %         reject = 0; % cannot reject the hypothesis of normality
 %     end
+
 
 	% Based on D'Agostino p. 122: parameters unknown.
 

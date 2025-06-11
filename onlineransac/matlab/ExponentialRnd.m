@@ -1,11 +1,8 @@
 function x = ExponentialRnd(alpha,beta,n,m)
-% Shifted exponential pdf in D'Agostino p. 133
-% 1/beta == mean of the distribution
-% alpha == location of the distribution
+% See the distrib. parameters in ExponentialFit.
 
-    if beta <= 0
-        error('Invalid beta for exponential distr.');
-    end
-    x = exprnd(1/beta,n,m) + alpha;
+	ExponentialCheckParms(alpha,beta);
+    x = exprnd(beta,n,m) + alpha; % matlab requires the mean (without offset) as
+    							  % the first parameter of exprnd().
 
 end

@@ -1,6 +1,7 @@
 function ex = ExponentialToExpectation(alpha,beta)
-% Return the expectation of that exponential
+% See the distrib. parameters in ExponentialFit.
 
-    ex = alpha + 1/beta;
+	ExponentialCheckParms(alpha,beta);
+    ex = alpha + beta;
     
 end

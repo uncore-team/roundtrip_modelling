@@ -1,9 +1,8 @@
 function m = LognormalToMode(offset,mu,sigma)
-% return the mode of that 3-lognormal
+% See lognormal parms in LognormalFit.m
 
-    if (sigma <= 0)
-        error('Invalid lognormal');
-    end
+    LognormalCheckParms(offset,mu,sigma);
+
     m = exp(mu - sigma^2) + offset;
 
 end

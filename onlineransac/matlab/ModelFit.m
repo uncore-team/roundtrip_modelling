@@ -26,10 +26,12 @@ function m = ModelFit(data,ind0,ind1,ty)
 
     elseif strcmp(ty,'EXP2')
 
-        [alpha,beta] = ExponentialFit(data);
-        m.defined = 1;
-        m.coeffs.alpha = alpha;
-        m.coeffs.beta = beta;
+        [alpha,beta,ok] = ExponentialFit(data);
+        if ok
+            m.defined = 1;
+            m.coeffs.alpha = alpha;
+            m.coeffs.beta = beta;
+        end
 
     elseif strcmp(ty,'LN3')
 

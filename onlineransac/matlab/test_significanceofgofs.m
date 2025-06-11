@@ -6,9 +6,9 @@ close all;
 clear; 
 
 % LL3
-mtrue = ModelCreate('LL3');
-mtrue = ModelChangeParms(mtrue,...
-                         [37086.059443685,3720.633937275,0.140459127]); % high prob of bad alpha
+% mtrue = ModelCreate('LL3');
+% mtrue = ModelChangeParms(mtrue,...
+%                          [37086.059443685,3720.633937275,0.140459127]); % high prob of bad alpha
 % bad alphas when too normal shape (c < 0.3)
 %                         [0.1,5,0.05]); % high prob of bad alpha
 %                         [0.1,5,0.25]); % very good estimate of alpha
@@ -18,17 +18,17 @@ mtrue = ModelChangeParms(mtrue,...
 % mtrue = ModelChangeParms(mtrue,...
 %                          [40000,10,5]); % ignored if we create randomly the model
 
-% % EXP2
-% mtrue = ModelCreate('EXP2');
-% mtrue = ModelChangeParms(mtrue,...
-%                          [0,0]);
+% EXP2
+mtrue = ModelCreate('EXP2');
+mtrue = ModelChangeParms(mtrue,...
+                         [0,0]);
 
 
 [numparms,namparms] = ModelParmsDef(mtrue.type);
-numtests = 1000;
+numtests = 10000;
 samplesize = 500; % max 500 for Gof thresholds have only be calculated up to that
 fixedtrue = 0; % 0- use random models each time; 1- use always the true model
-withfigs = 1;
+withfigs = 0;
 
 suponiendoparms = 0; % # of rejects if we know true parms
 nosuponiendoparms = 0; % # of rejects if we take parms from the sample
@@ -38,6 +38,7 @@ stats = [];
 if withfigs
     fi = figure;
 end
+rng(54);
 for t = 1:numtests
        
     if ~fixedtrue
@@ -266,7 +267,7 @@ ex2fit = ModelPdf(mex2,sts,fitstatx);
 figure(figpdfs);
 hex2 = plot(fitstatx,ex2fit/trapz(fitstatx,ex2fit)*trapz(hxs,hfreqs),'g.-');
 legend([hgamma,hspl,hll3,hln3,hex2],{'gamma/chi-sq','spline','LL3','LN3','EXP2'})
-
+title('Distribution of the statistic (parms from the sample)');
 
 
 

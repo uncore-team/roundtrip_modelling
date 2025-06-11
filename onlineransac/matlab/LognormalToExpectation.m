@@ -1,6 +1,8 @@
-function ex = LognormalToExpectation(gamma,mu,sigma)
-% Return the expectation of that lognormal
+function ex = LognormalToExpectation(offs,mu,sigma)
+% See lognormal parms in LognormalFit.m
 
-    ex = gamma + exp(mu + (sigma^2)/2);
+    LognormalCheckParms(offs,mu,sigma);
+
+    ex = offs + exp(mu + (sigma^2)/2);
 
 end

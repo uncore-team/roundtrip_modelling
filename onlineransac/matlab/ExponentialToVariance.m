@@ -1,5 +1,5 @@
 function v = ExponentialToVariance(alpha,beta)
-% Return the variance of that exponential
+% See the distrib. parameters in ExponentialFit.
 
     v = beta^2;
 

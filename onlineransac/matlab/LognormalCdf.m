@@ -1,5 +1,7 @@
 function cdf = LognormalCdf(offset,mu,sigma,x)
-% Calculate the CDF of the lognormal for the vector of values X
+% See lognormal parms in LognormalFit.m
+
+    LognormalCheckParms(offset,mu,sigma);
 
     cdf = logncdf(x-offset,mu,sigma);
 
