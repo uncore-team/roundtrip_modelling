@@ -38,7 +38,6 @@ stats = [];
 if withfigs
     fi = figure;
 end
-rng(54);
 for t = 1:numtests
        
     if ~fixedtrue

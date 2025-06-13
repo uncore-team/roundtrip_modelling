@@ -11,7 +11,7 @@ close all;
 clc;
 
 % model to tabulate and general experiment parms
-mtrue = ModelCreate('LN3');
+mtrue = ModelCreate('EXP2');
 parmsunknown = 1; % 1 - tabulate for unknown parameters that are deduced from the sample; 2- same except the offset; 0 - tabulate for the true params that generate the sample
 samplesizes = [20:10:2000, 2020:100:10000, 10000]; %[20:10:500]; %510:10:1000; % samples sizes to tabulate
 numtests = 100000; % monte carlo simulation on that number of samples
@@ -84,47 +84,15 @@ for f = 1:length(samplesizes)
     end
 
     measurements{f} = stats;
-
-    % deduce the threshold for getting an ALPHA level from the experimental
-    % distribution of the statistic. Use the left side of the distribution
-    % since it has more data and therefore it is more robust than the right
-    % tail.
-    [hfreqs,hxs] = hist(stats,100); % HXS are the equidistant centers of data
-    cdfsofar = 0.0;
-    a = trapz(hxs,hfreqs);
-    for g = 2:length(hxs)
-        newcdfsofar = cdfsofar + (hfreqs(g-1)+hfreqs(g))/a/2*(hxs(g)-hxs(g-1));
-        if newcdfsofar >= 1 - alpha
-            if ~usesimplerinterp
-                % INCX is (HXS(g) - HXS(g-1)), the inter-center distance
-                incx = hxs(g) - hxs(g-1);
-                % INCA is NEWCDFSOFAR - CDFSOFAR            
-                inca = newcdfsofar - cdfsofar;
-                % At x0 = HXS(g - 1) + INCX/2 there is CDFSOFAR (< 1 - alpha)
-                x0 = hxs(g - 1) + incx / 2;
-                % At x1 = HXS(g) + INCX/2 there is NEWCDFSOFAR (>= 1 - alpha)
-                % Between x0 and x1 we assume a uniform distribution of the
-                %  data, thus the area between them is a rectangle: INCX * INCA
-                % Therefore, 1 - alpha is reached when a subarea within x0 & x1
-                %  gets exactly (1 - alpha) - CDFSOFAR:
-                %   d * INCA = (1 - alpha) - CDFSOFAR, with d in [0,INCX]
-                %   d = ((1 - alpha) - CDFSOFAR) / INCA
-                %   The threshold should be at x0 + d.
-                results(f) = x0 + ((1 - alpha) - cdfsofar) / inca;
-            else
-                % Simpler estimate that agrees more with D'Agostino for the case of known parms: 
-                results(f) = (hxs(g)+hxs(g-1))/2;
-            end
-            fprintf('\t\tThreshold: %f with cdf-1 = %f and cdf = %f (mean %f)\n',...
-                    results(f),cdfsofar,newcdfsofar,(cdfsofar + newcdfsofar)/2);
-            if traceinternal
-                fprintf('\t');
-                toc(t0)
-            end            
-            break;
-        end
-        cdfsofar = newcdfsofar;
+    if traceinternal
+        fprintf('\t\t');
     end
+%    results(f) = deducethresholdfromstatshist(stats,alpha,traceinternal);
+    results(f) = deducethresholdfromstatsquantile(stats,alpha,traceinternal);
+    if traceinternal
+        fprintf('\t');
+        toc(t0)
+    end            
     
 end
 
@@ -415,6 +383,84 @@ plot(xs,ys,'g-','LineWidth',2);
 
 
 %% AUXILIARY FUNCTIONS
+
+function threshold = deducethresholdfromstatsquantile(stats,alpha,traceinternal)
+% Deduce the threshold counting the stats from smallest to largest (more
+% robust than from largest to smallest), until reaching 1-alpha area.
+% This method is called "Empirical Quantile estimation", being the quantile
+% 0.95 in the case that alpha == 0.05.
+
+    threshold = quantile(stats,1-alpha);
+
+    % % theoretically equivalent to the following, but matlab also
+    % % interpolates to reach the eact point:
+    % 
+    % ntotstats = length(stats);
+    % if ntotstats <= 1
+    %     error('Cannot find threshold with <= 1 stats');
+    % end
+    % 
+    % % number of stats needed to represent 1-alpha proportion:
+    % countforminusalpha = round((1 - alpha) * ntotstats);
+    % if (countforminusalpha <= 0) || (countforminusalpha >= ntotstats)
+    %     error('Cannot find threshold with invalid countforminusalpha');
+    % end
+    % 
+    % sortstats = sort(stats);
+    % threshold = sortstats(countforminusalpha + 1); % first stat that goes to alpha proportion
+    % if traceinternal
+    %     fprintf('Threshold: %f; countminusalpha: %d; total: %d; indexfirstalpha: %d\n',...
+    %             threshold,countforminusalpha,ntotstats,countforminusalpha + 1);
+    % end
+    
+    if traceinternal
+        fprintf('Threshold: %f\n',threshold);
+    end
+    
+end
+
+function threshold = deducethresholdfromstatshist(stats,alpha,traceinternal)
+% Deduce the threshold for getting an ALPHA level from the experimental
+% distribution of the statistic. Use the left side of the distribution
+% since it has more data and therefore it is more robust than the right
+% tail.
+
+    [hfreqs,hxs] = hist(stats,100); % HXS are the equidistant centers of data
+    cdfsofar = 0.0;
+    a = trapz(hxs,hfreqs);
+    for g = 2:length(hxs)
+        newcdfsofar = cdfsofar + (hfreqs(g-1)+hfreqs(g))/a/2*(hxs(g)-hxs(g-1));
+        if newcdfsofar >= 1 - alpha
+            if ~usesimplerinterp
+                % INCX is (HXS(g) - HXS(g-1)), the inter-center distance
+                incx = hxs(g) - hxs(g-1);
+                % INCA is NEWCDFSOFAR - CDFSOFAR            
+                inca = newcdfsofar - cdfsofar;
+                % At x0 = HXS(g - 1) + INCX/2 there is CDFSOFAR (< 1 - alpha)
+                x0 = hxs(g - 1) + incx / 2;
+                % At x1 = HXS(g) + INCX/2 there is NEWCDFSOFAR (>= 1 - alpha)
+                % Between x0 and x1 we assume a uniform distribution of the
+                %  data, thus the area between them is a rectangle: INCX * INCA
+                % Therefore, 1 - alpha is reached when a subarea within x0 & x1
+                %  gets exactly (1 - alpha) - CDFSOFAR:
+                %   d * INCA = (1 - alpha) - CDFSOFAR, with d in [0,INCX]
+                %   d = ((1 - alpha) - CDFSOFAR) / INCA
+                %   The threshold should be at x0 + d.
+                threshold = x0 + ((1 - alpha) - cdfsofar) / inca;
+            else
+                % Simpler estimate that agrees more with D'Agostino for the case of known parms: 
+                threshold = (hxs(g)+hxs(g-1))/2;
+            end
+            break;
+        end
+        cdfsofar = newcdfsofar;
+    end
+    if traceinternal
+        fprintf('Threshold: %f with cdf-1 = %f and cdf = %f (mean %f)\n',...
+                threshold,cdfsofar,newcdfsofar,(cdfsofar + newcdfsofar)/2);
+    end
+
+end
 
 function [sss,parms1,parms2,k] = twodoubleexpsplitted(samplesizes,results,tpoint)
 

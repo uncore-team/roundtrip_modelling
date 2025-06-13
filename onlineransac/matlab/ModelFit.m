@@ -35,7 +35,7 @@ function m = ModelFit(data,ind0,ind1,ty)
 
     elseif strcmp(ty,'LN3')
 
-        [ok, offs, mu, sigma] = LognormalFit(data);
+        [ok, offs, mu, sigma, ~] = LognormalFit(data);
         if ok
             m.defined = 1;
             m.coeffs.gamma = offs;

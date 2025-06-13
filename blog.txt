@@ -12,9 +12,11 @@ TODO:
 
 [DONE 10/06/25] -Una vez hecho eso probar a ver cómo sale el test_significance... para la EXP2 (intentando que salga parecido al 5%) y el test_tabulate de la EXP2 para sus nuevos thresholds.
 
--Una vez con la EXP2 resuelta, tengo que reusarla en el fit de la LN3, que ya lo tengo medio montado pero tengo dentro algunas operaciones de robustez que probablemente ya no hagan falta porque la EXP2 es más robusta, como el quitar los outliers derechos, por ejemplo. 
+[DONE 11/06/25] -Una vez con la EXP2 resuelta, tengo que reusarla en el fit de la LN3, que ya lo tengo medio montado pero tengo dentro algunas operaciones de robustez que probablemente ya no hagan falta porque la EXP2 es más robusta, como el quitar los outliers derechos, por ejemplo. 
 
 -Luego tengo que probar el test_significance de la LN3 para conseguir sus nuevos thresholds, particularmente para muestras grandes.
+
+-También habría que ver si es verdad que de haber varios cruces por cero en el offset de la LN3 sólo estamos sacando el primero.
 
 -Finalmente haría falta completar el test_significance de la LL3.
 

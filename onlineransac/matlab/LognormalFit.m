@@ -1,4 +1,4 @@
-function [ok, offs, mu, sigma] = LognormalFit(x)
+function [ok, offs, mu, sigma, casesign] = LognormalFit(x)
 % Fit through MLE a 3-lognormal to the data in X.
 % 
 % Taken from our Open-paper (thirdsubmission)
@@ -18,6 +18,7 @@ function [ok, offs, mu, sigma] = LognormalFit(x)
 % OFFS <- offset in the data, >= 0 and < min(x).
 % MU <- mean of the natural logarithm of the non-shifted data.
 % SIGMA <- std of the natural logarithm of the non-shifted data.
+% CASESIGN <- for debugging (see estimateOffset() below).
 
 global TOLROUNDTRIPS
 
@@ -33,7 +34,7 @@ global TOLROUNDTRIPS
         error('Invalid data sample for lognormal fit');
     end
 
-    [ok,offs] = estimateOffset(x,0);
+    [ok,offs,casesign] = estimateOffset(x,0);
     % OK <- 1 if the offset has been estimated at one of the possible extremes
     %       because the zero-crossing function did not changed its sign at the
     %       extremes; 
@@ -74,23 +75,28 @@ global TOLROUNDTRIPS
 
 end
 
-function [ok,offset] = estimateOffset(reg,trace)
+function [ok,offset,casesign] = estimateOffset(reg,trace)
 % MLE estimation of the lognormal offset of the sample REG.
 %
-% OFFSET <- offset estimated for the data.
+% REG -> sample
+% TRACE -> 0 to not trace; 1 to trace console; 2 to trace figs besides
+% 
 % OK <- 1 if the offset has been estimated at one of the possible extremes
 %       because the zero-crossing function did not changed its sign at the
 %       extremes; 2 if it has been estimated at one of the extremes because
 %       the search for it in between has failed; 3 if it has been estimated
 %       correctly within the possible range and was unique; 4 in the same
 %       situation but has been selected among all the offsets found.
+% OFFSET <- offset estimated for the data.
+% CASESIGN <- 0 for the case the signs of the zero-crossing function have
+%             the same sign in both extremes; 1 if different signs.
 
 global TOLROUNDTRIPS
 
     ConstantsInit();
 
     if trace
-        fprintf('..............\n');
+        fprintf('estimate offset..............\n');
     end
     
     % --------- DATA SANITIZING
@@ -105,7 +111,7 @@ global TOLROUNDTRIPS
         correctionoffset = min(reg) - 0.1; 
     end
     correctedsample = reg - correctionoffset; 
-    if trace == 2
+    if trace
         fprintf('-------- reg[%f,%f] mean(%f) median(%f) mean/median(%f) \n',...
                 min(correctedsample),max(correctedsample),mean(correctedsample),median(correctedsample),mean(correctedsample)/median(correctedsample));
     end
@@ -121,7 +127,7 @@ global TOLROUNDTRIPS
     n = length(orderedsample);
     kr = norminv(r/(n+1)); %sqrt(2)*erfinv(2*r/(n+1)-1);
     
-    if trace == 1
+    if trace == 2
         gxs = linspace(orderedsample(r)-10,orderedsample(r)-TOLROUNDTRIPS,1000000);
         gys = zeros(1,length(gxs));
         for f = 1:length(gys)
@@ -151,12 +157,17 @@ global TOLROUNDTRIPS
     f1 = funtofindzeroes(x0(end));
     if sign(f0) == sign(f1) % Cannot do the search unless sign(F(minbound)) ~= sign(F(maxbound))
 
+        casesign = 0;
+
         % The crossing can be around data(1), because the data is highly 
         % exponential or around 0 in the case the histogram is very 
         % gaussian.
 
         offset = heuristicoffsetatextreme(orderedsample,TOLROUNDTRIPS,trace);
 
+        if trace
+            fprintf('press a key - signs the same\n');
+        end
         if trace == 2
             gxs = linspace(TOLROUNDTRIPS,orderedsample(1),1000000);
             gys = zeros(1,length(gxs));
@@ -181,7 +192,6 @@ global TOLROUNDTRIPS
             histogram(orderedsample);
             grid;
             drawnow;
-            fprintf('press a key - ok 0b\n');
             pause;
             close(hfig);
         end
@@ -189,6 +199,8 @@ global TOLROUNDTRIPS
         offset = offset + correctionoffset;
 
     else % there is a change of sign in function
+
+        casesign = 1;
 
         % Finding zero
         options = optimset('Algorithm', 'levenberg-marquardt'); %'LevenbergMarquardt', 'on');  
@@ -228,10 +240,11 @@ global TOLROUNDTRIPS
             disp(errRecord)
         end
     
-        if (trace == 2)
+        if trace
+            fprintf('press a key - signs different ok %d\n',ok);
+        end        
+        if trace == 2
     
-            fprintf('=========\n');
-            
             gxs = linspace(TOLROUNDTRIPS,orderedsample(1),1000000);
             gys = zeros(1,length(gxs));
             for f = 1:length(gys)
@@ -248,11 +261,9 @@ global TOLROUNDTRIPS
             histogram(orderedsample);
             grid;
             drawnow;
-            ok
-            fprintf('press a key - ok 2\n');
             pause;
             close(hfig);
-        end        
+        end
 
     end
     
@@ -279,13 +290,15 @@ function offheur = heuristicoffsetatextreme(orderedsample,tole,trace)
     yspdfnorm = normpdf(xshist,mu,sigma);
     msenorm = sum((yspdfnorm - yshist).^2);
     
-    if trace == 2
-        fprintf('mseexp: %.15f, msenorm: %.15f\n',mseexp,msenorm);
+    if trace
+        fprintf('extreme offset; mseexp: %.15f, msenorm: %.15f\n',mseexp,msenorm);
         if mseexp <= msenorm
             fprintf('\tEXP wins\n');
         else
             fprintf('\tNORM wins\n');
         end
+    end
+    if trace == 2
         fi = figure;
         bar(xshist,yshist);
         hold on;
