@@ -14,9 +14,11 @@ TODO:
 
 [DONE 11/06/25] -Una vez con la EXP2 resuelta, tengo que reusarla en el fit de la LN3, que ya lo tengo medio montado pero tengo dentro algunas operaciones de robustez que probablemente ya no hagan falta porque la EXP2 es más robusta, como el quitar los outliers derechos, por ejemplo. 
 
--Luego tengo que probar el test_significance de la LN3 para conseguir sus nuevos thresholds, particularmente para muestras grandes.
+-Luego tengo que probar el test_significance de la LN3 para conseguir sus nuevos thresholds, particularmente para muestras grandes. No se puede hacer movmean de los datos antes porque eso viola la presunción de iid de los datos y altera por tanto el mínimo de los least square errors que se usan para el fitting.
 
 -También habría que ver si es verdad que de haber varios cruces por cero en el offset de la LN3 sólo estamos sacando el primero.
+
+[DONE 13/06/25] -También tendría que ver alguna medida de lo bien que explica un modelo dado a un sample dado para saber si los modelos que estamos sacando son realmente buenos. En principio podría ser un indicativo de eso la maximum likelihood (el valor de ésta) obtenida en el fitting. Otra forma sería ver cómo el modelo predice la prob frente a cómo es esa probabilidad en el sample. Todo esto sería para saber si, por ejemplo, la LN3 cuando nos vamos a los extremos, sigue dando un modelo adecuado. SOLUCIÓN: como tenemos una distribución true en las pruebas, compararla con la que obtenemos con fit
 
 -Finalmente haría falta completar el test_significance de la LL3.
 

@@ -3,5 +3,6 @@ function ys = ExponentialPdf(xs,alpha,beta)
     
 	ExponentialCheckParms(alpha,beta);
     ys = exp(-(xs - alpha)/beta)/beta;
+    ys(xs < alpha) = 0;
 
 end

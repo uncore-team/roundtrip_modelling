@@ -2,7 +2,8 @@ function ys = ModelPdf(m,scenario,xs)
 % Calculate the pdf of the given model for the support in XS.
 %
 % M -> model (see ModelCreate()).
-% SCENARIO -> complete scenario, needed for some models.
+% SCENARIO -> complete scenario, needed for some models (ignored
+%             otherwise).
 % XS -> vector of points in the support to calculate the pdf for.
 %
 % YS <- calculated pdf values for that support.

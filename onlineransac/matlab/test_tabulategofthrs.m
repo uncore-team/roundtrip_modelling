@@ -112,7 +112,10 @@ save(sprintf('%s_%d_to_%d.mat',namefi,samplesizes(1),samplesizes(end)));
 
 figure;
 subplot(1,2,1);
-plot(samplesizes,results,'.');
+plot(samplesizes,results,'b.');
+hold on;
+ys = movmean(results,25);
+plot(samplesizes,ys,'r.-');
 grid;
 xlabel('sample size');
 ylabel('threshold for gof');
@@ -121,7 +124,106 @@ drawHisto(results,'histogram','threshold for gof');
 
 return;
 
-%%  --- tries to model the EXP2-parms-from-sample in several ways
+%% --- modeling of the LN3 data (as in tabulatethresgof_LN3_parmsfromsample_20_to_10000_withzoomupto2000.mat)
+
+% we pursue a good fitting with a small norm of residuals w.r.t. the ones
+% of higher degrees and coefficients not too small in the polynomials
+%
+% Matlab fitting tool finds the minimization of squared errors, which in
+% turn is the same as getting the expectation of the Y conditioned to the
+% X, thus we are getting the expectation of the thresholds for each sample
+% size, which is what we want.
+
+close all;
+clc;
+
+part1end = find(samplesizes == 72,1);
+coeffs1 = [-0.000737065644440   0.184544019197911   1.144649233557212]; % a quadratic fit done with the basic fitting of the figure; get a norm of residuals = 0.288
+plotpolyfit(samplesizes,results,1,part1end,coeffs1,'part 1');
+
+part2end = find(samplesizes == 120,1);
+coeffs2 = [-0.000054441897049   0.018475635035727  -2.149691220487750  89.985450676534995]; % cubic fitting; normresid = 0.312693333622991
+plotpolyfit(samplesizes,results,part1end,part2end,coeffs2,'part 2');
+
+part3end = find(samplesizes == 680,1);
+coeffs3 = [-0.000000000001180   0.000000002636083  -0.000002240327089   0.000918517509819  -0.174031641455638  14.974327904387987]; % 5th polynomial; normresid = 13.494
+plotpolyfit(samplesizes,results,part2end,part3end,coeffs3,'part 3');
+
+part4end = find(samplesizes == 1020,1); 
+coeffs4 = [-0.0000007674684   0.0019230494045  -1.5058287142259   385.6552504121422]; % cubic fitting with normres = 97.6
+plotpolyfit(samplesizes,results,part3end,part4end,coeffs4,'part 4');
+
+part5end = length(samplesizes);
+coeffs5 = [0.000000000044030  -0.000000977059096   0.051670442087110 -13.899828584965791]; % cubic fitting with normresid = 129.06
+plotpolyfit(samplesizes,results,part4end,part5end,coeffs5,'part 5');
+
+transweight = @(x,k,transitionpoint) 1 ./ (1 + exp(-k * (x - transitionpoint)));
+ks = 0.05 * ones(1,numparts - 1); % transition weights from one part to the next
+ks(1) = 1;
+ks(2) = 0.5;
+
+% --- blending of the polynomials
+
+endsparts = [part1end,part2end,part3end,part4end,part5end];
+coeffsparts = {coeffs1,coeffs2,coeffs3,coeffs4,coeffs5};
+numparts = length(coeffsparts);
+
+ninds = length(samplesizes);
+x = samplesizes;
+y = zeros(1,ninds);
+w = zeros(1,ninds);
+for f = 1:ninds
+
+    findex = f;
+    n = samplesizes(f); % this is the samplesize
+
+    if findex <= part1end/2 % all are indexes on the vector samplesize
+        parts = [1]; % polynomials to weld
+    elseif findex <= (part1end + part2end)/2
+        parts = [1,2];
+        transitionpoint = samplesizes(part1end);
+    elseif findex <= (part2end + part3end)/2
+        parts = [2,3];
+        transitionpoint = samplesizes(part2end);
+    elseif findex <= (part3end + part4end)/2
+        parts = [3,4];
+        transitionpoint = samplesizes(part3end);
+    elseif findex <= (part4end + part5end)/2
+        parts = [4,5];
+        transitionpoint = samplesizes(part4end);
+    else
+        parts = [5];
+    end
+
+    if length(parts) == 1
+        y(f) = polyval(coeffsparts{parts(1)},x(f));
+    else
+        poly1 = polyval(coeffsparts{parts(1)},x(f));
+        poly2 = polyval(coeffsparts{parts(2)},x(f));     
+        w(f) = transweight(x(f),ks(parts(1)),transitionpoint);
+        y(f) = poly1 * (1 - w(f)) + poly2 * w(f);
+    end
+
+end
+figure;
+grid;
+hold on;
+plot(samplesizes(1:endsparts(1)),results(1:endsparts(1)),'.');
+for f = 2:numparts
+    plot(samplesizes(endsparts(f-1):endsparts(f)),results(endsparts(f-1):endsparts(f)),'.');
+    plot(ones(1,2) * samplesizes(endsparts(f-1)),[min(results),max(results)],'--');
+end
+plot(x,y,'o-');
+%scatter(x,y,36,w,'filled');  % 36 is the marker size
+%colormap(parula);
+%colorbar;
+xlabel('samplesizes');
+ylabel('threshold');
+title('blended fitting');
+
+
+
+%%  --- OBSOLETE --- tries to model the EXP2-parms-from-sample in several ways
 
 % NOTES:
 %   The double exponential calculates the initial parms for the search
@@ -221,7 +323,7 @@ end
 
 
 
-%% --- tries to fit the LN3-parms-from-sample results
+%% --- OBSOLETE --- tries to fit the LN3-parms-from-sample results
 
 % NOTES:
 %   No need for fit. Uncorrelated threshold approximately = 1.178 with
@@ -503,5 +605,20 @@ function meansss = twodoubleexpsplittedformin(samplesizes,results,transitionpoin
     
     [sss,~,~,~] = twodoubleexpsplitted(samplesizes,results,transitionpoint);
     meansss = mean(sss);
+
+end
+
+function plotpolyfit(samplesizes,results,index1,index2,polycoeffs,tit)
+
+    figure;
+    grid;
+    hold on;
+    title(sprintf('Fitting of thresholds for %s',tit));
+    plot(samplesizes(index1:index2),results(index1:index2),'b.');
+    ys = polyval(polycoeffs,samplesizes(index1:index2));
+    plot(samplesizes(index1:index2),ys,'r-');
+    xlabel('Sample sizes');
+    ylabel('thresholds');
+    legend('data','polyfit');
 
 end

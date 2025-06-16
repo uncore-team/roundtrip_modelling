@@ -13,20 +13,20 @@ clear;
 %                         [0.1,5,0.05]); % high prob of bad alpha
 %                         [0.1,5,0.25]); % very good estimate of alpha
 
-% % LN3
-% mtrue = ModelCreate('LN3');
-% mtrue = ModelChangeParms(mtrue,...
-%                          [40000,10,5]); % ignored if we create randomly the model
-
-% EXP2
-mtrue = ModelCreate('EXP2');
+% LN3
+mtrue = ModelCreate('LN3');
 mtrue = ModelChangeParms(mtrue,...
-                         [0,0]);
+                         [40000,10,5]); % ignored if we create randomly the model
+
+% % EXP2
+% mtrue = ModelCreate('EXP2');
+% mtrue = ModelChangeParms(mtrue,...
+%                          [0,0]);
 
 
 [numparms,namparms] = ModelParmsDef(mtrue.type);
 numtests = 10000;
-samplesize = 500; % max 500 for Gof thresholds have only be calculated up to that
+samplesize = 500; 
 fixedtrue = 0; % 0- use random models each time; 1- use always the true model
 withfigs = 0;
 
