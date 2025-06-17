@@ -5,13 +5,12 @@ clc;
 close all;
 clear; 
 
-% LL3
+% % LL3
 % mtrue = ModelCreate('LL3');
 % mtrue = ModelChangeParms(mtrue,...
-%                          [37086.059443685,3720.633937275,0.140459127]); % high prob of bad alpha
-% bad alphas when too normal shape (c < 0.3)
-%                         [0.1,5,0.05]); % high prob of bad alpha
-%                         [0.1,5,0.25]); % very good estimate of alpha
+%                          [37086.059443685,3720.633937275,0.140459127]); % high prob of bad alpha bad alphas when too normal shape (c < 0.3)
+%                         %[0.1,5,0.05]); % high prob of bad alpha
+%                         %[0.1,5,0.25]); % very good estimate of alpha
 
 % LN3
 mtrue = ModelCreate('LN3');
@@ -23,100 +22,132 @@ mtrue = ModelChangeParms(mtrue,...
 % mtrue = ModelChangeParms(mtrue,...
 %                          [0,0]);
 
-
-[numparms,namparms] = ModelParmsDef(mtrue.type);
-numtests = 10000;
-samplesize = 500; 
+samplesizes = [20:100:10000]; 
 fixedtrue = 0; % 0- use random models each time; 1- use always the true model
 withfigs = 0;
+withtraces = 0;
 
-suponiendoparms = 0; % # of rejects if we know true parms
-nosuponiendoparms = 0; % # of rejects if we take parms from the sample
-numunfit = 0;
-historynosupparms = [];
-stats = [];
-if withfigs
-    fi = figure;
-end
-for t = 1:numtests
-       
-    if ~fixedtrue
-        mtrue = ModelCreateRnd(mtrue.type,'typrnd');
-    end
+% main scanning loop
+[numparms,namparms] = ModelParmsDef(mtrue.type);
+numtestspersamplesize = 10000;
+alphas = nan(2,length(samplesizes));
+for f = 1:length(samplesizes)
 
-    fprintf('%d... GT-model: ',t);
-    ModelPrint(mtrue);
+    samplesize = samplesizes(f);
+    fprintf('\n\n\n======> SAMPLESIZE %d\n\n',samplesize);
 
-    ds = ModelRnd(mtrue,1,samplesize); % generate sample
-    
-    [reject1,stat1,~] = ModelGof(mtrue,ds,1); % gof with parms coming out of the sample
-    fprintf('\trej:%d\n',reject1);
-    suponiendoparms = suponiendoparms + reject1;
-
-    mfit = ModelFit(ds,1,length(ds),mtrue.type);
-    reject2 = 2;
-    stat2 = NaN;
-    if mfit.defined
-        [reject2,stat2,thresh] = ModelGof(mfit,ds,0); % gof with parms coming from the sample
-        fprintf('\tES-model:');
-        ModelPrint(mfit);
-        fprintf('\trej:%d\n',reject2);
-        nosuponiendoparms = nosuponiendoparms + reject2;
-        coeffstrue = ModelToCoeffs(mtrue);
-        coeffsfit = ModelToCoeffs(mfit);
-    else
-        numunfit = numunfit + 1;
-        fprintf('\tES-model: UNDEFINED\n');
-    end
-    historynosupparms = [historynosupparms ; ...
-                         coeffstrue(2:2 + numparms - 1),coeffsfit(2:2 + numparms - 1),reject1,reject2];
-    stats = [stats; ...
-             stat1,stat2];
-    
+    suponiendoparms = 0; % # of rejects if we know true parms
+    nosuponiendoparms = 0; % # of rejects if we take parms from the sample
+    numunfit = 0;
+    historynosupparms = [];
+    stats = [];
     if withfigs
-        hold off;
-        [hfreqs,hxs] = hist(ds,50);
-        if reject1 == 1
-            ec = 'r';
-        else
-            ec = 'c';
-        end
-        if reject2 == 1
-            fc = 'y';
-        else
-            fc = 'g';
-        end
-        bar(hxs,hfreqs,'EdgeColor',ec,'FaceColor',fc);
-
-        hold on;
-        grid;
-        xs = linspace(min(ds),max(ds),1000);
-        ys = ModelPdf(mtrue,ds,xs);
-        ys = ys / trapz(xs,ys) * trapz(hxs,hfreqs);
-        plot(xs,ys,'b-');
-
-        if mfit.defined
-            yes = ModelPdf(mfit,ds,xs);
-            yes = yes / trapz(xs,yes) * trapz(hxs,hfreqs);
-            plot(xs,yes,'r--');    
-        end
-
-        title(sprintf('%d out of %d - rejects: %d  %d',t,numtests,reject1,reject2));
-        drawnow;
+        fi = figure;
     end
+    oldperc = 0;
+    t0 = tic;
+    for t = 1:numtestspersamplesize
+           
+        perc = t / numtestspersamplesize * 100;
+        if (round(perc/10) > round(oldperc/10))
+            oldperc = perc;
+            fprintf('\t%.2f%%, test %d out of %d. ',perc,t,numtestspersamplesize);
+            toc(t0)
+            drawnow;
+        end
+
+        if ~fixedtrue
+            mtrue = ModelCreateRnd(mtrue.type,'typrnd');
+        end
+    
+        if withtraces
+            fprintf('%d... GT-model: ',t);
+            ModelPrint(mtrue);
+        end
+    
+        ds = ModelRnd(mtrue,1,samplesize); % generate sample
+        
+        [reject1,stat1,~] = ModelGof(mtrue,ds,1); % gof with parms coming out of the sample
+        if withtraces
+            fprintf('\trej:%d\n',reject1);
+        end
+        suponiendoparms = suponiendoparms + reject1;
+    
+        mfit = ModelFit(ds,1,length(ds),mtrue.type);
+        reject2 = 2;
+        stat2 = NaN;
+        if mfit.defined
+            [reject2,stat2,thresh] = ModelGof(mfit,ds,0); % gof with parms coming from the sample
+            if withtraces
+                fprintf('\tES-model:');
+                ModelPrint(mfit);
+                fprintf('\trej:%d\n',reject2);
+            end
+            nosuponiendoparms = nosuponiendoparms + reject2;
+            coeffstrue = ModelToCoeffs(mtrue);
+            coeffsfit = ModelToCoeffs(mfit);
+        else
+            numunfit = numunfit + 1;
+            if withtraces
+                fprintf('\tES-model: UNDEFINED\n');
+            end
+        end
+        historynosupparms = [historynosupparms ; ...
+                             coeffstrue(2:2 + numparms - 1),coeffsfit(2:2 + numparms - 1),reject1,reject2];
+        stats = [stats; ...
+                 stat1,stat2];
+        
+        if withfigs
+            hold off;
+            [hfreqs,hxs] = hist(ds,50);
+            if reject1 == 1
+                ec = 'r';
+            else
+                ec = 'c';
+            end
+            if reject2 == 1
+                fc = 'y';
+            else
+                fc = 'g';
+            end
+            bar(hxs,hfreqs,'EdgeColor',ec,'FaceColor',fc);
+    
+            hold on;
+            grid;
+            xs = linspace(min(ds),max(ds),1000);
+            ys = ModelPdf(mtrue,ds,xs);
+            ys = ys / trapz(xs,ys) * trapz(hxs,hfreqs);
+            plot(xs,ys,'b-');
+    
+            if mfit.defined
+                yes = ModelPdf(mfit,ds,xs);
+                yes = yes / trapz(xs,yes) * trapz(hxs,hfreqs);
+                plot(xs,yes,'r--');    
+            end
+    
+            title(sprintf('%d out of %d - rejects: %d  %d',t,numtestspersamplesize,reject1,reject2));
+            drawnow;
+        end
+    end
+    alphas(1,f) = suponiendoparms/(numtestspersamplesize - numunfit);
+    alphas(2,f) = nosuponiendoparms/(numtestspersamplesize - numunfit);
+    
+    fprintf('\n\n\tALPHA (TYPE I ERROR) ESTIMATES:\n');
+    
+    fprintf('\tAssuming parameters known:\n');
+    fprintf('\t\tEst.alpha (Type I error): %f\n',suponiendoparms/(numtestspersamplesize - numunfit));
+    fprintf('\t\tCorrect detection: %f\n',1-suponiendoparms/(numtestspersamplesize - numunfit));
+    fprintf('\n');
+    
+    fprintf('\tAssuming parameters unknown (undefined: %d; %.2f%%):\n',numunfit,numunfit/numtestspersamplesize*100);
+    fprintf('\t\tEst.alpha (Type I error): %f\n',nosuponiendoparms/(numtestspersamplesize - numunfit));
+    fprintf('\t\tCorrect detection: %f\n',1-nosuponiendoparms/(numtestspersamplesize - numunfit));
+
 end
 
-fprintf('\n\nALPHA (TYPE I ERROR) ESTIMATES:\n');
+return;
 
-fprintf('Assuming parameters known:\n');
-fprintf('\tEst.alpha (Type I error): %f\n',suponiendoparms/(numtests - numunfit));
-fprintf('\tCorrect detection: %f\n',1-suponiendoparms/(numtests - numunfit));
-fprintf('\n');
-
-fprintf('Assuming parameters unknown (undefined: %d; %.2f%%):\n',numunfit,numunfit/numtests*100);
-fprintf('\tEst.alpha (Type I error): %f\n',nosuponiendoparms/(numtests - numunfit));
-fprintf('\tCorrect detection: %f\n',1-nosuponiendoparms/(numtests - numunfit));
-
+%% ---- Otras comprobaciones del alpha
 
 indrej1 = numparms * 2 + 1;
 indrej2 = numparms * 2 + 2;

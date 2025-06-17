@@ -157,6 +157,8 @@ part5end = length(samplesizes);
 coeffs5 = [0.000000000044030  -0.000000977059096   0.051670442087110 -13.899828584965791]; % cubic fitting with normresid = 129.06
 plotpolyfit(samplesizes,results,part4end,part5end,coeffs5,'part 5');
 
+numparts = 5;
+
 transweight = @(x,k,transitionpoint) 1 ./ (1 + exp(-k * (x - transitionpoint)));
 ks = 0.05 * ones(1,numparts - 1); % transition weights from one part to the next
 ks(1) = 1;
@@ -164,9 +166,8 @@ ks(2) = 0.5;
 
 % --- blending of the polynomials
 
-endsparts = [part1end,part2end,part3end,part4end,part5end];
+endspartsss = samplesizes([part1end,part2end,part3end,part4end,part5end]);
 coeffsparts = {coeffs1,coeffs2,coeffs3,coeffs4,coeffs5};
-numparts = length(coeffsparts);
 
 ninds = length(samplesizes);
 x = samplesizes;
@@ -174,33 +175,32 @@ y = zeros(1,ninds);
 w = zeros(1,ninds);
 for f = 1:ninds
 
-    findex = f;
-    n = samplesizes(f); % this is the samplesize
+    ss = samplesizes(f); % this is the samplesize
 
-    if findex <= part1end/2 % all are indexes on the vector samplesize
+    if ss <= endspartsss(1)/2 
         parts = [1]; % polynomials to weld
-    elseif findex <= (part1end + part2end)/2
+    elseif ss <= (endspartsss(1) + endspartsss(2))/2
         parts = [1,2];
-        transitionpoint = samplesizes(part1end);
-    elseif findex <= (part2end + part3end)/2
+        transitionpoint = endspartsss(1);
+    elseif ss <= (endspartsss(2) + endspartsss(3))/2
         parts = [2,3];
-        transitionpoint = samplesizes(part2end);
-    elseif findex <= (part3end + part4end)/2
+        transitionpoint = endspartsss(2);
+    elseif ss <= (endspartsss(3) + endspartsss(4))/2
         parts = [3,4];
-        transitionpoint = samplesizes(part3end);
-    elseif findex <= (part4end + part5end)/2
+        transitionpoint = endspartsss(3);
+    elseif ss <= (endspartsss(4) + endspartsss(5))/2
         parts = [4,5];
-        transitionpoint = samplesizes(part4end);
+        transitionpoint = endspartsss(4);
     else
         parts = [5];
     end
-
+    
     if length(parts) == 1
-        y(f) = polyval(coeffsparts{parts(1)},x(f));
+        y(f) = polyval(coeffsparts{parts(1)},ss);
     else
-        poly1 = polyval(coeffsparts{parts(1)},x(f));
-        poly2 = polyval(coeffsparts{parts(2)},x(f));     
-        w(f) = transweight(x(f),ks(parts(1)),transitionpoint);
+        poly1 = polyval(coeffsparts{parts(1)},ss);
+        poly2 = polyval(coeffsparts{parts(2)},ss);     
+        w(f) = transweight(ss,ks(parts(1)),transitionpoint);
         y(f) = poly1 * (1 - w(f)) + poly2 * w(f);
     end
 
@@ -213,10 +213,10 @@ for f = 2:numparts
     plot(samplesizes(endsparts(f-1):endsparts(f)),results(endsparts(f-1):endsparts(f)),'.');
     plot(ones(1,2) * samplesizes(endsparts(f-1)),[min(results),max(results)],'--');
 end
-plot(x,y,'o-');
-%scatter(x,y,36,w,'filled');  % 36 is the marker size
-%colormap(parula);
-%colorbar;
+%plot(x,y,'o-');
+scatter(x,y,36,w,'filled');  % 36 is the marker size
+colormap(parula);
+colorbar;
 xlabel('samplesizes');
 ylabel('threshold');
 title('blended fitting');

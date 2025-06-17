@@ -20,7 +20,9 @@ TODO:
 
 [DONE 13/06/25] -También tendría que ver alguna medida de lo bien que explica un modelo dado a un sample dado para saber si los modelos que estamos sacando son realmente buenos. En principio podría ser un indicativo de eso la maximum likelihood (el valor de ésta) obtenida en el fitting. Otra forma sería ver cómo el modelo predice la prob frente a cómo es esa probabilidad en el sample. Todo esto sería para saber si, por ejemplo, la LN3 cuando nos vamos a los extremos, sigue dando un modelo adecuado. SOLUCIÓN: como tenemos una distribución true en las pruebas, compararla con la que obtenemos con fit
 
--Finalmente haría falta completar el test_significance de la LL3.
+-También habría que derivar matemáticamente lo que sufre la media obtenida por un fitting polynomial de least squared errors en caso de soldarse con otro (caso LN3 en particular).
+
+-Finalmente haría falta completar el test_significance de la LL3 y ver si podemos hacer un lookup table para los thresholds de LN3 y LL3 si son complicados.
 
 -Mirar lo que me ha mandado Carmen del 26 de mayo.
 

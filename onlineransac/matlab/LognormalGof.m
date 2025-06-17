@@ -104,7 +104,49 @@ function [reject,stat,thresh] = LognormalGof(x,offset,mu,sigma,modelnotfromdata)
         %thresh = 1.177616088094618;
 
         % for the tabulated result using samplesizes in [20,1000]:
-        thresh = 1.142624318695783;
+        %thresh = 1.142624318695783;
+
+        % according to the tabulation of june 2025:
+
+        coeffs1 = [-0.000737065644440   0.184544019197911   1.144649233557212]; % a quadratic fit done with the basic fitting of the figure; get a norm of residuals = 0.288
+        coeffs2 = [-0.000054441897049   0.018475635035727  -2.149691220487750  89.985450676534995]; % cubic fitting; normresid = 0.312693333622991
+        coeffs3 = [-0.000000000001180   0.000000002636083  -0.000002240327089   0.000918517509819  -0.174031641455638  14.974327904387987]; % 5th polynomial; normresid = 13.494
+        coeffs4 = [-0.0000007674684   0.0019230494045  -1.5058287142259   385.6552504121422]; % cubic fitting with normres = 97.6
+        coeffs5 = [0.000000000044030  -0.000000977059096   0.051670442087110 -13.899828584965791]; % cubic fitting with normresid = 129.06
+        transweight = @(x,k,transitionpoint) 1 ./ (1 + exp(-k * (x - transitionpoint)));
+        ks = 0.05 * ones(1,5 - 1); % transition weights from one part to the next
+        ks(1) = 1;
+        ks(2) = 0.5;
+        endspartsss = [72,120,680,1020,10000];
+        coeffsparts = {coeffs1,coeffs2,coeffs3,coeffs4,coeffs5};
+
+        if n <= endspartsss(1)/2 
+            parts = [1]; % polynomials to weld
+        elseif n <= (endspartsss(1) + endspartsss(2))/2
+            parts = [1,2];
+            transitionpoint = endspartsss(1);
+        elseif n <= (endspartsss(2) + endspartsss(3))/2
+            parts = [2,3];
+            transitionpoint = endspartsss(2);
+        elseif n <= (endspartsss(3) + endspartsss(4))/2
+            parts = [3,4];
+            transitionpoint = endspartsss(3);
+        elseif n <= (endspartsss(4) + endspartsss(5))/2
+            parts = [4,5];
+            transitionpoint = endspartsss(4);
+        else
+            parts = [5];
+        end
+        
+        if length(parts) == 1
+            thresh = polyval(coeffsparts{parts(1)},n);
+        else
+            poly1 = polyval(coeffsparts{parts(1)},n);
+            poly2 = polyval(coeffsparts{parts(2)},n);     
+            w = transweight(n,ks(parts(1)),transitionpoint);
+            thresh = poly1 * (1 - w) + poly2 * w;
+        end
+        
         
     end
     if (stat > thresh) 
