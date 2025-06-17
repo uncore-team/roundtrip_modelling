@@ -21,6 +21,7 @@ function [reject,stat,thresh] = ModelGof(m,data,modelnotfromdata)
 %			smaller is that degree); this works as an alternative to the p-value
 %			that is safe to use as long as we do not assume any linearity or
 %			other particular decreasing profile in STAT.
+%           This value will be NaN if the Gof process have not worked ok.
 
     if ~m.defined
         error('Undefined model cannot do gof');
@@ -36,7 +37,7 @@ function [reject,stat,thresh] = ModelGof(m,data,modelnotfromdata)
 
     elseif strcmp(m.type,'LN3')
 
-        [reject,stat,thresh] = LognormalGof(data,m.coeffs.gamma,m.coeffs.mu,m.coeffs.sigma,modelnotfromdata);
+        [reject,stat,thresh,~] = LognormalGof(data,m.coeffs.gamma,m.coeffs.mu,m.coeffs.sigma,modelnotfromdata);
 
     elseif strcmp(m.type,'BERN')
 

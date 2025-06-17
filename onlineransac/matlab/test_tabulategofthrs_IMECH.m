@@ -121,7 +121,8 @@ for f = 1:nsizes
                     continue;
                 end
             else
-                [~,stat,~] = ModelGof(mo,ds,1); % get the statistic for the true parms
+            	nm = ModelAdjustForSample(mo,ds);
+                [~,stat,~] = ModelGof(nm,ds,1); % get the statistic for the true parms
                 if isinf(stat) || isnan(stat)
                     continue;
                 end

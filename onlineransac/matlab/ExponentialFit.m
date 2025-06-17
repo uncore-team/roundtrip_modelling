@@ -4,6 +4,9 @@ function [alpha,beta,ok] = ExponentialFit(x)
 % where we have: pdf(x;alpha,beta) = 1/beta * exp(-(x-alpha)/beta).
 % expectation == beta + alpha; median == ln2 * beta + alpha; variance == beta^2
 %
+% Such an exponential distribution may generate samples with values equal
+% to the offset.
+%
 % Wikipedia: pdf(x;alpha,lambda) = lambda * exp(-lambda*(x-alpha)); expectation == 1/lambda + alpha; median == ln2/lambda + alpha == ln2 * (expectation - alpha) + alpha
 % Matlab: it has only the non-shifted distrib. where pdf(x,mu) = 1/mu * exp(-x/mu)
 %

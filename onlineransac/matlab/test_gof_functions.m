@@ -58,11 +58,12 @@ parfor c = 1:ncombs
             while (cont2 < ntests) && (cont3 < 2*ntests)
 
                 params2 = zeros(size(params1));
-                samples = ExponentialRnd(params1(1), params1(2), 1, sz);
+                samples = ExponentialRnd(params1(1), params1(2), 1, sz);                
 
                 t3 = tic;
                 cont3 = cont3 + 1;
                 if kmod
+                	% CARE! Here the sample can be distorted due to numerical imprecisions
                     [reject, stat, thresh] = ExponentialGof(samples, params1(1), params1(2), kmod);
                 else
                     [params2(1), params2(2)] = ExponentialFit(samples);
@@ -90,6 +91,8 @@ parfor c = 1:ncombs
                 t3 = tic;
                 cont3 = cont3 + 1;
                 if kmod
+                	% CARE! Here the sample can be distorted due to numerical imprecisions up to the point
+                	% of having values == offset, which is not allowed theoretically (see LognormalRnd)
                     [reject, stat, thresh] = LognormalGof(samples, params1(1), params1(2), params1(3), kmod);
                 else
                     [ok, params2(1), params2(2), params2(3)] = LognormalFit(samples);
@@ -119,6 +122,8 @@ parfor c = 1:ncombs
                 t3 = tic;
                 cont3 = cont3 + 1;
                 if kmod
+                	% CARE! Here the sample can be distorted due to numerical imprecisions up to the point
+                	% of having values == offset, which is not allowed theoretically (see LoglogisticRnd)
                     [reject, stat, thresh] = LoglogisticGoF(samples, params1(1), params1(2), params1(3), kmod);
                 else
                     [params2(1), params2(2), params2(3), exitflag] = LoglogisticFit(samples);

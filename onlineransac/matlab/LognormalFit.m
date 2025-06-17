@@ -10,6 +10,8 @@ function [ok, offs, mu, sigma, casesign] = LognormalFit(x)
 % Expectation: offset + exp(mu + sigma^2 / 2); median: exp(mu); mode: offset + exp(mu - sigma^2); variance: exp(sigma^2) - 1) * exp(2*mu + sigma^2)
 %
 % Ours, wikipedia and Matlab use the same formulation.
+% A lognormal sample cannot have any value <= to its offset. The offset
+% estimation procedure deals correctly with such values.
 %
 % X -> data sample, with min(x) > 0.
 %
@@ -44,7 +46,7 @@ global TOLROUNDTRIPS
     %       correctly within the possible range and was unique; 
     %       4 in the same
     %       situation but has been selected among all the offsets found.
-    if (offs < 0) || (offs >= minx)
+    if (offs < 0) || (minx <= offs)
         warning('Invalid offset for a lognormal fit');
         return;
     end

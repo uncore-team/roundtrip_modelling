@@ -1,4 +1,4 @@
-function [reject,stat,thresh] = LognormalGof(x,offset,mu,sigma,modelnotfromdata)
+function [reject,stat,thresh,numsanitized] = LognormalGof(x,offset,mu,sigma,modelnotfromdata)
 
     LognormalCheckParms(offset,mu,sigma);
 
@@ -11,7 +11,7 @@ function [reject,stat,thresh] = LognormalGof(x,offset,mu,sigma,modelnotfromdata)
 % 
 %   Note that this only works for parameters coming from data, apparently.
 %
-%    if (min(x) < offset) % that model cannot assess these data
+%    if (min(x) <= offset) % that model cannot assess these data
 %        reject = 1;
 %        stat = NaN;
 %        thresh = NaN;
@@ -52,20 +52,25 @@ function [reject,stat,thresh] = LognormalGof(x,offset,mu,sigma,modelnotfromdata)
 
 	% Based on D'Agostino p. 122
 
-    xord = sort(x - offset); % go to a non-shifted sample from a non-shifted lognormal
-    if (xord(1) < 0) % that model cannot assess these data
-                     % (AD test cannot work with samples that produce 0 or 1 Z values)
-        reject = 1;
-        stat = Inf;
-        thresh = NaN;
-        return;
+    xord = sort(x); 
+    numsanitized = 0;
+    if (xord(1) <= offset) % that model cannot assess these data
+                           % (AD test cannot work with samples that produce 0 or 1 Z values)
+        % xord = sanitizeNumericalOffsetsInSample(xord,offset); % discards the offending data
+        % n = length(xord); 
+        % numsanitized = length(x) - n;
+        % if n < 20    % too few values survived to do a Gof
+            reject = 1;
+            stat = Inf;
+            thresh = NaN;
+            return;
+        % end
     end
-    logxord = log(xord); % still ordered, now normal
-    mu = mean(x);
-    w = (logxord - mu) / sigma;
-    Z = normcdf(w,0,1);
+    logxord = log(xord - offset); % still ordered, now unshifted and normal
+    w = (logxord - mu) / sigma; % still ordered
+    Z = normcdf(w,0,1); % still ordered
     A2 = ADstatistic(Z);
-    if isnan(A2) % that model cannot assess these data
+    if isnan(A2) % that model could not assess these data
         reject = 1;
         stat = Inf;
         thresh = NaN;

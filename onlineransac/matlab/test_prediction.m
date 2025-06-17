@@ -44,7 +44,6 @@ req = ReqCreate(0.9,...
                 mean(historial) + std(historial)*2);
 thereisgt = 0;
 if strcmp(experimentbatch,'sim') && (experimentindex == 1)
-    % LoglogisticRnd(1000,2,0.3
     mgt = ModelCreate('LL3');
     mgt.coeffs.a = 1000;
     mgt.coeffs.b = 2;

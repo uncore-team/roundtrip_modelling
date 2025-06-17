@@ -54,7 +54,8 @@ for d = 1:ndists
 
             sample = ModelRnd(tmodel, 1, sz); % generate sample
     
-            [treject, tstat, ~] = ModelGof(tmodel, sample, 1);
+            mo = ModelAdjustForSample(tmodel,sample)
+            [treject, tstat, ~] = ModelGof(mo, sample, 1);
             km_nrejects = km_nrejects + treject;
             tcoeffs = ModelToCoeffs(tmodel);
     
