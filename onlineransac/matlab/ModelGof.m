@@ -4,8 +4,8 @@ function [reject,stat,thresh] = ModelGof(m,data,modelnotfromdata)
 % M -> model (see ModelFit()).
 % DATA -> vector of data that we need to assess whether it is generated 
 %         from M.
-% MODELNOTFROMDATA -> 1 if M comes from knowledge out of the data DATA; 0
-%                     if M has been deduced from the same DATA.
+% MODELNOTFROMDATA -> 1 if M comes from knowledge out of the DATA; 
+%					  0 if M has been deduced from the same DATA.
 %
 % REJECT <- 1 if we have to reject the null hypothesis that the model
 %           explains the sample, 0 if we cannot say if it explain the sample

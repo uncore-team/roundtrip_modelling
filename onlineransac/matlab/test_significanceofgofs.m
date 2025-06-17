@@ -23,7 +23,7 @@ mtrue = ModelChangeParms(mtrue,...
 %                          [0,0]);
 
 samplesizes = [20:100:10000]; 
-fixedtrue = 0; % 0- use random models each time; 1- use always the true model
+usethesametruemodelalways = 0; % 0- use random models each time; 1- use always the true model
 withfigs = 0;
 withtraces = 0;
 
@@ -36,10 +36,10 @@ for f = 1:length(samplesizes)
     samplesize = samplesizes(f);
     fprintf('\n\n\n======> SAMPLESIZE %d\n\n',samplesize);
 
-    suponiendoparms = 0; % # of rejects if we know true parms
-    nosuponiendoparms = 0; % # of rejects if we take parms from the sample
+    rejectswithtrueparms = 0; % # of rejects if we know true parms
+    rejectswithparmsfromsample = 0; % # of rejects if we take parms from the sample
     numunfit = 0;
-    historynosupparms = [];
+    historyoftests = [];
     stats = [];
     if withfigs
         fi = figure;
@@ -56,34 +56,37 @@ for f = 1:length(samplesizes)
             drawnow;
         end
 
-        if ~fixedtrue
+        % create a new model if not using the same always
+        if ~usethesametruemodelalways
             mtrue = ModelCreateRnd(mtrue.type,'typrnd');
         end
-    
         if withtraces
             fprintf('%d... GT-model: ',t);
             ModelPrint(mtrue);
         end
     
-        ds = ModelRnd(mtrue,1,samplesize); % generate sample
+        % generate sample from the model
+        ds = ModelRnd(mtrue,1,samplesize);
         
-        [reject1,stat1,~] = ModelGof(mtrue,ds,1); % gof with parms coming out of the sample
+        % GOF with true params
+        [reject1,stat1,~] = ModelGof(mtrue,ds,1); 
         if withtraces
             fprintf('\trej:%d\n',reject1);
         end
-        suponiendoparms = suponiendoparms + reject1;
+        rejectswithtrueparms = rejectswithtrueparms + reject1;
     
+        % GOF with parms from sample
         mfit = ModelFit(ds,1,length(ds),mtrue.type);
         reject2 = 2;
         stat2 = NaN;
         if mfit.defined
-            [reject2,stat2,thresh] = ModelGof(mfit,ds,0); % gof with parms coming from the sample
+            [reject2,stat2,thresh] = ModelGof(mfit,ds,0); 
             if withtraces
                 fprintf('\tES-model:');
                 ModelPrint(mfit);
                 fprintf('\trej:%d\n',reject2);
             end
-            nosuponiendoparms = nosuponiendoparms + reject2;
+            rejectswithparmsfromsample = rejectswithparmsfromsample + reject2;
             coeffstrue = ModelToCoeffs(mtrue);
             coeffsfit = ModelToCoeffs(mfit);
         else
@@ -92,8 +95,9 @@ for f = 1:length(samplesizes)
                 fprintf('\tES-model: UNDEFINED\n');
             end
         end
-        historynosupparms = [historynosupparms ; ...
-                             coeffstrue(2:2 + numparms - 1),coeffsfit(2:2 + numparms - 1),reject1,reject2];
+
+        historyoftests = [historyoftests ; ...
+                          coeffstrue(2:2 + numparms - 1),coeffsfit(2:2 + numparms - 1),reject1,reject2];
         stats = [stats; ...
                  stat1,stat2];
         
@@ -129,19 +133,19 @@ for f = 1:length(samplesizes)
             drawnow;
         end
     end
-    alphas(1,f) = suponiendoparms/(numtestspersamplesize - numunfit);
-    alphas(2,f) = nosuponiendoparms/(numtestspersamplesize - numunfit);
+    alphas(1,f) = rejectswithtrueparms/(numtestspersamplesize - numunfit);
+    alphas(2,f) = rejectswithparmsfromsample/(numtestspersamplesize - numunfit);
     
     fprintf('\n\n\tALPHA (TYPE I ERROR) ESTIMATES:\n');
     
     fprintf('\tAssuming parameters known:\n');
-    fprintf('\t\tEst.alpha (Type I error): %f\n',suponiendoparms/(numtestspersamplesize - numunfit));
-    fprintf('\t\tCorrect detection: %f\n',1-suponiendoparms/(numtestspersamplesize - numunfit));
+    fprintf('\t\tEst.alpha (Type I error): %f\n',alphas(1,f));
+    fprintf('\t\tCorrect detection: %f\n',1-alphas(1,f));
     fprintf('\n');
     
     fprintf('\tAssuming parameters unknown (undefined: %d; %.2f%%):\n',numunfit,numunfit/numtestspersamplesize*100);
-    fprintf('\t\tEst.alpha (Type I error): %f\n',nosuponiendoparms/(numtestspersamplesize - numunfit));
-    fprintf('\t\tCorrect detection: %f\n',1-nosuponiendoparms/(numtestspersamplesize - numunfit));
+    fprintf('\t\tEst.alpha (Type I error): %f\n',alphas(2,f));
+    fprintf('\t\tCorrect detection: %f\n',1-alphas(2,f));
 
 end
 
@@ -155,8 +159,8 @@ indscoeffstrue = 1:numparms;
 indscoeffsfit = numparms + 1 : numparms * 2;
 
 figure;
-indsrej = find(historynosupparms(:,indrej2) == 1);
-histrej = historynosupparms(indsrej,indscoeffsfit);
+indsrej = find(historyoftests(:,indrej2) == 1);
+histrej = historyoftests(indsrej,indscoeffsfit);
 if numparms == 3
     plot3(histrej(:,indscoeffstrue(1)),histrej(:,indscoeffstrue(2)),histrej(:,indscoeffstrue(3)),'*r')
 elseif numparms == 2
@@ -166,8 +170,8 @@ else
 end
 grid
 hold on
-indsnorej = find(historynosupparms(:,indrej2) == 0);
-histnorej = historynosupparms(indsnorej,indscoeffsfit);
+indsnorej = find(historyoftests(:,indrej2) == 0);
+histnorej = historyoftests(indsnorej,indscoeffsfit);
 if numparms == 3
     plot3(histnorej(:,indscoeffstrue(1)),histnorej(:,indscoeffstrue(2)),histnorej(:,indscoeffstrue(3)),'.b')
 else
@@ -180,21 +184,21 @@ if numparms == 3
 end
 title('Rejections with estimated fit');
 
-if ~fixedtrue
+if ~usethesametruemodelalways
     figure;
     grid
     hold on
 
-    indsrej = find(historynosupparms(:,indrej1) == 1);
-    histrej = historynosupparms(indsrej,indscoeffstrue);
+    indsrej = find(historyoftests(:,indrej1) == 1);
+    histrej = historyoftests(indsrej,indscoeffstrue);
     if numparms == 3
         plot3(histrej(:,indscoeffstrue(1)),histrej(:,indscoeffstrue(2)),histrej(:,indscoeffstrue(3)),'*r')
     else
         plot(histrej(:,indscoeffstrue(1)),histrej(:,indscoeffstrue(2)),'*r')
     end
 
-    indsnorej = find(historynosupparms(:,indrej1) == 0);
-    histnorej = historynosupparms(indsnorej,indscoeffstrue);
+    indsnorej = find(historyoftests(:,indrej1) == 0);
+    histnorej = historyoftests(indsnorej,indscoeffstrue);
     if numparms == 3
         plot3(histnorej(:,indscoeffstrue(1)),histnorej(:,indscoeffstrue(2)),histnorej(:,indscoeffstrue(3)),'.b')
     else
@@ -219,8 +223,8 @@ end
 fprintf('\n\nLOGISTIC REGRESSION (GENERALIZED LINEAR MODEL):\n');
 varnames = namparms;
 varnames{end + 1} = 'hyprej';
-indsaux = find(historynosupparms(:,indrej2) ~= 2);
-mdl = fitglm(historynosupparms(indsaux,indscoeffstrue),historynosupparms(indsaux,indrej2),...
+indsaux = find(historyoftests(:,indrej2) ~= 2);
+mdl = fitglm(historyoftests(indsaux,indscoeffstrue),historyoftests(indsaux,indrej2),...
              'Distribution', 'binomial',...
              'VarNames',varnames);
 disp(mdl.Coefficients);
@@ -233,7 +237,7 @@ disp(mdl.Coefficients);
 %    The Linear field contains coefficients showing how each axis contributes to class separation.
 % Reference: Fisher (1936), "The Use of Multiple Measurements in Taxonomic Problems", Annals of Eugenics.
 fprintf('\n\nLINEAR DISCRIMINANT ANALYSIS:\n');
-ldaModel = fitcdiscr(historynosupparms(indsaux,indscoeffstrue),historynosupparms(indsaux,indrej2));
+ldaModel = fitcdiscr(historyoftests(indsaux,indscoeffstrue),historyoftests(indsaux,indrej2));
 disp(ldaModel.Coeffs(1,2).Linear)
 
 % Mutual Information
@@ -244,7 +248,7 @@ disp(ldaModel.Coeffs(1,2).Linear)
 % Requires Statistics and Machine Learning Toolbox
 fprintf('\n\nMUTUAL INFORMATION:\n');
 for f = 1:length(indscoeffstrue)
-    mutualinfo = mi(historynosupparms(indsaux,indscoeffstrue(f)), historynosupparms(indsaux,indrej2));
+    mutualinfo = mi(historyoftests(indsaux,indscoeffstrue(f)), historyoftests(indsaux,indrej2));
     fprintf('Mutual info coeff #%d: %f\n',f,mutualinfo);
 end
 

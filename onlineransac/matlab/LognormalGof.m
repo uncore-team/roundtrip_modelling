@@ -50,18 +50,18 @@ function [reject,stat,thresh] = LognormalGof(x,offset,mu,sigma,modelnotfromdata)
 %     end
 
 
-	% Based on D'Agostino p. 122: parameters unknown.
+	% Based on D'Agostino p. 122
 
     xord = sort(x - offset); % go to a non-shifted sample from a non-shifted lognormal
     if (xord(1) < 0) % that model cannot assess these data
-                       % AD test cannot work with samples that produce 0 or 1 Z values
+                     % (AD test cannot work with samples that produce 0 or 1 Z values)
         reject = 1;
         stat = Inf;
         thresh = NaN;
         return;
     end
     logxord = log(xord); % still ordered, now normal
-    m = mean(x);
+    mu = mean(x);
     w = (logxord - mu) / sigma;
     Z = normcdf(w,0,1);
     A2 = ADstatistic(Z);
