@@ -5,7 +5,8 @@ function [alpha,beta,ok] = ExponentialFit(x)
 % expectation == beta + alpha; median == ln2 * beta + alpha; variance == beta^2
 %
 % Such an exponential distribution may generate samples with values equal
-% to the offset.
+% to the offset. The offset estimation in this function may produce such
+% case.
 %
 % Wikipedia: pdf(x;alpha,lambda) = lambda * exp(-lambda*(x-alpha)); expectation == 1/lambda + alpha; median == ln2/lambda + alpha == ln2 * (expectation - alpha) + alpha
 % Matlab: it has only the non-shifted distrib. where pdf(x,mu) = 1/mu * exp(-x/mu)
@@ -37,11 +38,22 @@ global TOLROUNDTRIPS
     xord = sort(x);
     minx = xord(1);
     if minx <= 0
-        warning('Tried to fit an exponential with min(x) <= 0');
-        return;
+        error('Tried to fit an exponential with min(x) <= 0');
     end
 
     % --- unbiased MLE estimation:
+    % (Method according to D'Agostino, p. 141)
+    % PROBLEM: This method produces negative alpha in some of
+    % the estimations due to the fact that when the average of the sample
+    % is > n * x1 then alpha is negative in this formulation; that can
+    % occur due to large values in the sample, far to the right, that
+    % distort the mean. 
+    % It could be addressed by first estimating the
+    % median and then doing mean = median / ln2, but that does not provide
+    % any analytical guaranteee that that alpha < 0 in all cases (the
+    % median might also be distorted).
+    % We adddress the problem instead by falling back to the biased MLE
+    % estimation in the cases that that occurs.
     mu = mean(x);
     beta = (mu - minx) * n / (n - 1); % estimate of the (non-shifted) mean
     alpha = minx - beta / n; % estimate of the offset
@@ -61,10 +73,7 @@ global TOLROUNDTRIPS
         % beta = med / log(2);
 
         beta = mu - minx;
-        alpha = minx - TOLROUNDTRIPS; % offset; slightly smaller than min(x) to avoid singularities in the AD test (we introduce a slight bias by doing this, but it is acceptable)    
-        if alpha < 0
-            alpha = 0; % should not happen since min(x) > 0
-        end
+        alpha = minx; % offset
     end
 
     % % ---- this is the method in D'Agostino p. 425 to reduce to a 0-offset exp.
@@ -116,22 +125,6 @@ global TOLROUNDTRIPS
     %     beta = mean(x - alpha); 
     % end
 
-
-    % ---- Method according to D'Agostino, p. 141 
-    % This method corrects the biases of both alpha and beta estimates, as
-    % developed in docs/derivation of the unbiasing of EXP2 estimates.pdf
-
-    % PROBLEM: This method produces negative alpha in some of
-    % the estimations due to the fact that when the average of the sample
-    % is > n * x1 then alpha is negative in this formulation; that can
-    % occur due to large values in the sample, far to the right, that
-    % distort the mean. 
-    % It could be addressed by first estimating the
-    % median and then doing mean = median / ln2, but that does not provide
-    % any analytical guaranteee that that alpha < 0 in all cases (the
-    % median might also be distorted).
-    % We adddress the problem instead by falling back to the biased MLE
-    % estimation in the cases that that occurs.
 
     ok = 1;
 

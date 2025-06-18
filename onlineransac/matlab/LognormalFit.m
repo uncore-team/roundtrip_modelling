@@ -7,6 +7,7 @@ function [ok, offs, mu, sigma, casesign] = LognormalFit(x)
 % random variable X is lognormally distributed if the natural logarithm of 
 % X is normally distributed.
 %
+% pdf(x) = 1/(x * sigma * sqrt(2*pi)) * exp(-( (log(x - offs) - mu)^2/(2*sigma^2) ))
 % Expectation: offset + exp(mu + sigma^2 / 2); median: exp(mu); mode: offset + exp(mu - sigma^2); variance: exp(sigma^2) - 1) * exp(2*mu + sigma^2)
 %
 % Ours, wikipedia and Matlab use the same formulation.
@@ -15,8 +16,7 @@ function [ok, offs, mu, sigma, casesign] = LognormalFit(x)
 %
 % X -> data sample, with min(x) > 0.
 %
-% OK <- 1 indicating a fit is found; 0 indicating no fit is found because
-%       the offset cannot be estimated or it is >= min(x).
+% OK <- 1 indicating a fit is found, always.
 % OFFS <- offset in the data, >= 0 and < min(x).
 % MU <- mean of the natural logarithm of the non-shifted data.
 % SIGMA <- std of the natural logarithm of the non-shifted data.
@@ -37,24 +37,15 @@ global TOLROUNDTRIPS
     end
 
     [ok,offs,casesign] = estimateOffset(x,0);
-    % OK <- 1 if the offset has been estimated at one of the possible extremes
-    %       because the zero-crossing function did not changed its sign at the
-    %       extremes; 
-    %       2 if it has been estimated at one of the extremes because
-    %       the search for it in between has failed; 
-    %       3 if it has been estimated
-    %       correctly within the possible range and was unique; 
-    %       4 in the same
-    %       situation but has been selected among all the offsets found.
-    if (offs < 0) || (minx <= offs)
-        warning('Invalid offset for a lognormal fit');
-        return;
-    end
-    if (minx - offs < TOLROUNDTRIPS)
-        offs = minx - TOLROUNDTRIPS; % just give it some minimum margin
-    end
+    % OK is 3 if MLE has been done; otherwise, a heuristic offset has been
+    % provided. In any case, offset < min(x)
+    % Given offset, these are the MLE for mu and sigma according to
+    % wikipedia (both unbiased):
+    %  mu = sum(log(xi - offs)) / n
+    %  sigma = sqrt(  sum((log(xi - offs) - mu)^2) / (n - 1) )
+    
     % the natural logarithm of the non-shifted data should be normal, so:
-    ds = log(x-offs); % reduce to non-shifted normal
+    ds = log(x - offs); % reduce to non-shifted normal
     mu = mean(ds); % estimate mu and sigma as the ones of that normal (MLE)
     sigma = std(ds);
 
@@ -78,16 +69,20 @@ global TOLROUNDTRIPS
 end
 
 function [ok,offset,casesign] = estimateOffset(reg,trace)
-% MLE estimation of the lognormal offset of the sample REG.
+% MLE estimation of the lognormal offset of the sample REG; when there is
+% no solution in the MLE formula, a heuristic estimation is done.
 %
 % REG -> sample
 % TRACE -> 0 to not trace; 1 to trace console; 2 to trace figs besides
 % 
-% OK <- 1 if the offset has been estimated at one of the possible extremes
-%       because the zero-crossing function did not changed its sign at the
-%       extremes; 2 if it has been estimated at one of the extremes because
-%       the search for it in between has failed; 3 if it has been estimated
-%       correctly within the possible range and was unique; 4 in the same
+% OK <- 1 if the offset has been estimated heuristically at one of the extremes
+%       because the zero-crossing function did not changed its sign at those
+%       extremes; 
+%       2 if it has been estimated at one of the extremes because
+%       the search for it in between has failed; 
+%       3 if it has been estimated
+%       correctly within the possible range and was unique; 
+%       4 in the same
 %       situation but has been selected among all the offsets found.
 % OFFSET <- offset estimated for the data.
 % CASESIGN <- 0 for the case the signs of the zero-crossing function have
@@ -157,7 +152,7 @@ global TOLROUNDTRIPS
 
     f0 = funtofindzeroes(x0(1));
     f1 = funtofindzeroes(x0(end));
-    if sign(f0) == sign(f1) % Cannot do the search unless sign(F(minbound)) ~= sign(F(maxbound))
+    if sign(f0) == sign(f1) % Cannot do the search
 
         casesign = 0;
 
@@ -200,7 +195,7 @@ global TOLROUNDTRIPS
         ok = 1;
         offset = offset + correctionoffset;
 
-    else % there is a change of sign in function
+    else % there is a change of sign in function, thus some possible zero crossing
 
         casesign = 1;
 
@@ -268,6 +263,10 @@ global TOLROUNDTRIPS
         end
 
     end
+
+    if (offset < 0) || (offset >= minreg)
+        error('Invalid offset calculation');
+    end
     
 end
 
@@ -312,9 +311,9 @@ function offheur = heuristicoffsetatextreme(orderedsample,tole,trace)
         close(fi);
     end
 
-    if mseexp <= msenorm % exponential models better
+    if mseexp <= msenorm % exponential model is better; take its offset
         offheur = orderedsample(1) - tole;
-    else % normal models better
+    else % normal model is better; take its offset
         offheur = 0;
     end
 end

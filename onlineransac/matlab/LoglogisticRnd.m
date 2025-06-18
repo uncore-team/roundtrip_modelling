@@ -1,5 +1,6 @@
 function r = LoglogisticRnd(a, b, c, m, n)
 % Generate m*n data from loglogistic (a,b,c)
+%
 % The resulting sample may have values equal to the offset (a) due to a
 % reason only (since the LL cannot generate naturally such cases): when 
 % adding a large offset to a small value; this is due to numerical 

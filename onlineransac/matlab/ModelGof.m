@@ -37,7 +37,7 @@ function [reject,stat,thresh] = ModelGof(m,data,modelnotfromdata)
 
     elseif strcmp(m.type,'LN3')
 
-        [reject,stat,thresh,~] = LognormalGof(data,m.coeffs.gamma,m.coeffs.mu,m.coeffs.sigma,modelnotfromdata);
+        [reject,stat,thresh] = LognormalGof(data,m.coeffs.gamma,m.coeffs.mu,m.coeffs.sigma,modelnotfromdata);
 
     elseif strcmp(m.type,'BERN')
 

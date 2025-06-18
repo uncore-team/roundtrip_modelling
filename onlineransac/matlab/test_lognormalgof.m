@@ -17,7 +17,6 @@ for s = 1:length(samplesizes)
 
     numtests = 10000;
     stats = nan(1,numtests);
-    numsans = zeros(1,numtests);
     oldperc = 0;
     t0 = tic;
     for f = 1:numtests
@@ -32,6 +31,7 @@ for s = 1:length(samplesizes)
 
         mtrue = ModelCreateRnd(mtrue.type,'typrnd');
     
+        % force to obtain results for every of the numtests
         gofalready = 0;
         while ~gofalready
             fitalready = 0;
@@ -43,18 +43,18 @@ for s = 1:length(samplesizes)
                         fitalready = 1;
                     end
                 else
-                    mo = ModelAdjustForSample(mtrue,ds);
+                    %mo = ModelAdjustForSample(mtrue,ds);
+                    mo = mtrue;
                     fitalready = 1;
                 end
             end
-            [reject,stat,thresh,numsanitized] = LognormalGof(ds,mo.coeffs.gamma,mo.coeffs.mu,mo.coeffs.sigma,parmstrue);
+            [reject,stat,thresh] = LognormalGof(ds,mo.coeffs.gamma,mo.coeffs.mu,mo.coeffs.sigma,parmstrue);
     %        [reject,stat,thres] = ModelGof(mo,ds,parmstrue); % parms true
-            %if ~isnan(thresh) % otherwise, gof has not worked
+            if ~isnan(thresh) % otherwise, gof has not worked
                 gofalready = 1;
-            %end
+            end
         end
         stats(f) = stat;
-        numsans(f) = numsanitized;
     
     end
     indsvalid = find(stats ~= inf);
@@ -63,13 +63,11 @@ for s = 1:length(samplesizes)
     histogram(stats(indsvalid));
     hold on;
     plot(2.492 * [1 1],[0 1000],'r-');
-    title(sprintf('SS: %d, parmstrue: %d;  quantile(0.95) = %f, invalid: %.2f%%, max.sanit.: %.2f%%, numtestssanit.: %.2f%%',...
+    title(sprintf('SS: %d, parmstrue: %d;  quantile(0.95) = %f, invalid: %.2f%%',...
                   samplesizes(s),...
                   parmstrue,...
                   quantile(stats(indsvalid),0.95),...
-                  (numtests-length(indsvalid))/numtests*100,...
-                  max(numsans)/samplesizes(s)*100,...
-                  length(find(numsans > 0))/numtests * 100));
+                  (numtests-length(indsvalid))/numtests*100));
     drawnow;
 
 end

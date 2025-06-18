@@ -53,6 +53,7 @@ for f = 1:length(samplesizes)
                 drawnow;
             end
         end
+        % force to obtain results for all numtests:
         finish = 0;
         while ~finish
             mo = ModelCreateRnd(mtrue.type,'typrnd'); % create the true params for the model (randomly)
@@ -60,7 +61,7 @@ for f = 1:length(samplesizes)
             if parmsunknown
                 mfit = ModelFit(ds,1,length(ds),mtrue.type); % fit a model to the sample
                 if ~mfit.defined
-                    continue;
+                    continue; % get another sample if fit fails
                 end
                 if (parmsunknown == 2) && ModelHasOffset(mtrue.type)
                     mfitcoeffs = ModelToCoeffs(mfit);
@@ -70,13 +71,13 @@ for f = 1:length(samplesizes)
                 end
                 [~,stat,thresh] = ModelGof(mfit,ds,0); % get the statistic for that fitting
                 if isinf(stat) || isnan(thresh)
-                    continue;
+                    continue; % get another sample if gof fails
                 end
             else
-                nm = ModelAdjustForSample(mo,ds);
-                [~,stat,thresh] = ModelGof(nm,ds,1); % get the statistic for the true parms
+                %nm = ModelAdjustForSample(mo,ds);
+                [~,stat,thresh] = ModelGof(mo,ds,1); % get the statistic for the true parms
                 if isinf(stat) || isnan(thresh)
-                    continue;
+                    continue; % get another sample if gof fails after fit
                 end
             end
             stats(t) = stat;

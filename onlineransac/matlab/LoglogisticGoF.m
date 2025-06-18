@@ -85,12 +85,12 @@ function [reject,stat,thresh]=LoglogisticGoF(x,a,b,c,modelnotfromdata)
 
     % ---- calculate statistic: A2 
     A2 = statisticA2(Z);
-    if isnan(A2) % that model cannot assess these data
-        reject = 1;
-        stat = Inf;
-        thresh = NaN;
-        return;
-    end
+    % if isnan(A2) % that model cannot assess these data
+    %     reject = 1;
+    %     stat = Inf;
+    %     thresh = NaN;
+    %     return;
+    % end
     if ~modelnotfromdata
         % do the following only if parameters come from sample:
         A2 = A2*(1+.25/n);  % correction needed because both parameters are deduced from the same sample, table 4.22 case 3

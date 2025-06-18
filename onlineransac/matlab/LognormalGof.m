@@ -1,9 +1,8 @@
-function [reject,stat,thresh,numsanitized] = LognormalGof(x,offset,mu,sigma,modelnotfromdata)
+function [reject,stat,thresh] = LognormalGof(x,offset,mu,sigma,modelnotfromdata)
 
     LognormalCheckParms(offset,mu,sigma);
 
     n = numel(x);
-    x = reshape(x,1,n); % force X is a row vector
 
 % % Taken from https://es.mathworks.com/matlabcentral/fileexchange/60147-normality-test-package
 % % Paper of 2017 in tyrell project /ejecucion/docs/A Compilation of Some Popular Goodness of Fit Tests for Normal Distribution.pdf
@@ -52,112 +51,46 @@ function [reject,stat,thresh,numsanitized] = LognormalGof(x,offset,mu,sigma,mode
 
 	% Based on D'Agostino p. 122
 
-    xord = sort(x); 
-    numsanitized = 0;
-    if (xord(1) <= offset) % that model cannot assess these data
-                           % (AD test cannot work with samples that produce 0 or 1 Z values)
-        % xord = sanitizeNumericalOffsetsInSample(xord,offset); % discards the offending data
-        % n = length(xord); 
-        % numsanitized = length(x) - n;
-        % if n < 20    % too few values survived to do a Gof
-            reject = 1;
-            stat = Inf;
-            thresh = NaN;
-            return;
-        % end
-    end
-    logxord = log(xord - offset); % still ordered, now unshifted and normal
-    w = (logxord - mu) / sigma; % still ordered
-    Z = normcdf(w,0,1); % still ordered
-    A2 = statisticA2(Z);
-    if isnan(A2) % that model could not assess these data
-        reject = 1;
-        stat = Inf;
-        thresh = NaN;
-        return;
-    end
-    % do the following if parameters come from sample (D'Agostino table 4.7)
-    if ~modelnotfromdata
-    	A2 = A2 * (1 + 0.75/n + 2.25/n^2);
-    end
-    stat = A2;
-    
-    % --- hypothesis test
-    if modelnotfromdata
-    	thresh = 2.492; % known parameters = previous model (n>=5)
-                        % table 4.2 D'Agostino (confirmed by MonteCarlo in
-                        % test_tabulategofthrs.m)
-    else % unknown parameters, estimated from the very sample
+    logx = log(x - offset); % still ordered, now unshifted and normal
+    w = (logx - mu) / sigma; % now normal(0,1)
+    Z = normcdf(w,0,1); 
 
-        % the following is D'Agostino but does not work for use since he
-        % assumes only 2 parameters unknown, but we have 3; thus we have
-        % conducted new MonteCarlo experiments to deduce the threshold in
-        % this case
-        %
-        % thresh = 0.752; % table 4.7, upper tail.
+    [kindstat,stat] = StatisticGof(Z);
+    if strcmp(kindstat,'A2')
 
-        % NOTE: We have tested with test_tabulategofthrs.m that, if we
-        % assume the offset known and the rest of parms taken from the
-        % sample, the threshold follows a straight line on the samplesize,
-        % not a constant: 0.3123 * samplesize + 7.4905
-
-
-        % MonteCarlo results in test_tabulategofthrs.m; fitting at the end
-        % section of that script:
-
-        % for the tabulated result using only samplesizes in [20,500]:
-        %thresh = 1.177616088094618;
-
-        % for the tabulated result using samplesizes in [20,1000]:
-        %thresh = 1.142624318695783;
-
-        % according to the tabulation of june 2025:
-
-        coeffs1 = [-0.000737065644440   0.184544019197911   1.144649233557212]; % a quadratic fit done with the basic fitting of the figure; get a norm of residuals = 0.288
-        coeffs2 = [-0.000054441897049   0.018475635035727  -2.149691220487750  89.985450676534995]; % cubic fitting; normresid = 0.312693333622991
-        coeffs3 = [-0.000000000001180   0.000000002636083  -0.000002240327089   0.000918517509819  -0.174031641455638  14.974327904387987]; % 5th polynomial; normresid = 13.494
-        coeffs4 = [-0.0000007674684   0.0019230494045  -1.5058287142259   385.6552504121422]; % cubic fitting with normres = 97.6
-        coeffs5 = [0.000000000044030  -0.000000977059096   0.051670442087110 -13.899828584965791]; % cubic fitting with normresid = 129.06
-        transweight = @(x,k,transitionpoint) 1 ./ (1 + exp(-k * (x - transitionpoint)));
-        ks = 0.05 * ones(1,5 - 1); % transition weights from one part to the next
-        ks(1) = 1;
-        ks(2) = 0.5;
-        endspartsss = [72,120,680,1020,10000];
-        coeffsparts = {coeffs1,coeffs2,coeffs3,coeffs4,coeffs5};
-
-        if n <= endspartsss(1)/2 
-            parts = [1]; % polynomials to weld
-        elseif n <= (endspartsss(1) + endspartsss(2))/2
-            parts = [1,2];
-            transitionpoint = endspartsss(1);
-        elseif n <= (endspartsss(2) + endspartsss(3))/2
-            parts = [2,3];
-            transitionpoint = endspartsss(2);
-        elseif n <= (endspartsss(3) + endspartsss(4))/2
-            parts = [3,4];
-            transitionpoint = endspartsss(3);
-        elseif n <= (endspartsss(4) + endspartsss(5))/2
-            parts = [4,5];
-            transitionpoint = endspartsss(4);
-        else
-            parts = [5];
+        if modelnotfromdata
+            % no correction of stat in this case (see table 4.2 D'Agostino)
+    	    thresh = 2.492; % known parameters = previous model (n>=5)
+                            % table 4.2 D'Agostino (confirmed by MonteCarlo in
+                            % test_tabulategofthrs.m)
+        else % model comes from data
+            % correction: A2 for case 3 (both parameters were deduced from the same sample). 
+            % the following is D'Agostino table 4.7, upper tail
+            stat = stat * (1 + 0.75/n + 2.25/n^2);
+            thresh = 0.752; 
         end
-        
-        if length(parts) == 1
-            thresh = polyval(coeffsparts{parts(1)},n);
-        else
-            poly1 = polyval(coeffsparts{parts(1)},n);
-            poly2 = polyval(coeffsparts{parts(2)},n);     
-            w = transweight(n,ks(parts(1)),transitionpoint);
-            thresh = poly1 * (1 - w) + poly2 * w;
+
+    elseif strcmp(kindstat,'W2')
+
+        if modelnotfromdata
+            % correction if parms are true (not from sample); table 4.2
+            % D'Agostino
+            stat = (stat - 0.4/n + 0.6/n^2) * (1 + 1/n);
+            thresh = 0.461;
+        else % model comes from data
+            % the following is D'Agostino table 4.7, upper tail
+            stat = stat * (1 + 0.5/n);
+            thresh = 0.117;
         end
-        
-        
+
+    else
+        error('Unknown gof statistic');
     end
-    if (stat > thresh) 
+
+    if (stat > thresh) % equivalently, the p-value is smaller than the significant level
         reject=1; % reject
     else
-        reject=0; % cannot reject
-    end
-    
+        reject=0; % cannot reject the null hypothesis of the data coming from an exponential
+    end 
+
 end

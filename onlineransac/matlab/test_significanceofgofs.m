@@ -38,7 +38,10 @@ for f = 1:length(samplesizes)
 
     rejectswithtrueparms = 0; % # of rejects if we know true parms
     rejectswithparmsfromsample = 0; % # of rejects if we take parms from the sample
+    numcollectedtrue = 0;
+    numcollectedfromsample = 0;
     numunfit = 0;
+    numungoftrue = 0;
     numungoffit = 0;
     historyoftests = [];
     stats = [];
@@ -66,23 +69,24 @@ for f = 1:length(samplesizes)
             ModelPrint(mtrue);
         end
     
-        samplegood = 0;
-        while ~samplegood
-            % generate sample from the model
-            ds = ModelRnd(mtrue,1,samplesize);
+        % generate sample from the model
+        ds = ModelRnd(mtrue,1,samplesize);
             
-            % GOF with true params
-            nm = ModelAdjustForSample(mtrue,ds);
-            [reject1,stat1,thresh1] = ModelGof(nm,ds,1); 
-
-            if ~isnan(thresh1)
-                samplegood = 1;
+        % GOF with true params
+        %nm = ModelAdjustForSample(mtrue,ds);
+        [reject1,stat1,thresh1] = ModelGof(mtrue,ds,1); 
+        if isnan(thresh1)
+            numungoftrue = numungoftrue + 1;
+            if withtraces
+                fprintf('\tES-model: GOF UNDEFINED IN TRUE\n');
             end
+        else
+            if withtraces
+                fprintf('\trej:%d\n',reject1);
+            end
+            rejectswithtrueparms = rejectswithtrueparms + reject1;
+            numcollectedtrue = numcollectedtrue + 1;
         end
-        if withtraces
-            fprintf('\trej:%d\n',reject1);
-        end
-        rejectswithtrueparms = rejectswithtrueparms + reject1;
     
         % GOF with parms from sample
         mfit = ModelFit(ds,1,length(ds),mtrue.type);
@@ -104,6 +108,7 @@ for f = 1:length(samplesizes)
                 rejectswithparmsfromsample = rejectswithparmsfromsample + reject2;
                 coeffstrue = ModelToCoeffs(mtrue);
                 coeffsfit = ModelToCoeffs(mfit);
+                numcollectedfromsample = numcollectedfromsample + 1;
             end
         else
             numunfit = numunfit + 1;
@@ -149,19 +154,20 @@ for f = 1:length(samplesizes)
             drawnow;
         end
     end
-    alphas(1,f) = rejectswithtrueparms/(numtestspersamplesize - numunfit);
-    alphas(2,f) = rejectswithparmsfromsample/(numtestspersamplesize - numunfit - numungoffit);
+    alphas(1,f) = rejectswithtrueparms/numcollectedtrue;
+    alphas(2,f) = rejectswithparmsfromsample/numcollectedfromsample;
     
     fprintf('\n\n\tALPHA (TYPE I ERROR) ESTIMATES:\n');
     
-    fprintf('\tAssuming parameters known:\n');
+    fprintf('\tAssuming parameters known: un-gofs: %d (%.2f%%)\n',...
+            numungoftrue,numungoftrue/numtestspersamplesize*100);
     fprintf('\t\tEst.alpha (Type I error): %f\n',alphas(1,f));
     fprintf('\t\tCorrect detection: %f\n',1-alphas(1,f));
     fprintf('\n');
     
-    fprintf('\tAssuming parameters unknown (undefined: %d; %.2f%%) (no gof after fit: %d):\n',...
+    fprintf('\tAssuming parameters unknown (un-fitted: %d; %.2f%%) (fittd but un-gofs: %d; %.2f%%):\n',...
             numunfit,numunfit/numtestspersamplesize*100,...
-            numungoffit);
+            numungoffit,numungoffit/(numtestspersamplesize-numunfit)*100);
     fprintf('\t\tEst.alpha (Type I error): %f\n',alphas(2,f));
     fprintf('\t\tCorrect detection: %f\n',1-alphas(2,f));
 
