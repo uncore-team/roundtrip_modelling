@@ -1,5 +1,5 @@
-function A2 = ADstatistic(Z)
-% Original, basic (non-modified) AD statistic from p.100 D'Agostino
+function A2 = statisticA2(Z)
+% Original, basic (non-modified) A-D statistic from p.100 D'Agostino
 % Return NaN if Z is invalid for doing the calculations.
 
     % This statistic measures the squared distance

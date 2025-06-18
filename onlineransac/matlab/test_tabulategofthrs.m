@@ -68,14 +68,14 @@ for f = 1:length(samplesizes)
                     mfitcoeffs(2) = mtruecoeffs(2);
                     mfit = ModelFromCoeffs(mfitcoeffs);
                 end
-                [~,stat,~] = ModelGof(mfit,ds,0); % get the statistic for that fitting
-                if isinf(stat) || isnan(stat)
+                [~,stat,thresh] = ModelGof(mfit,ds,0); % get the statistic for that fitting
+                if isinf(stat) || isnan(thresh)
                     continue;
                 end
             else
                 nm = ModelAdjustForSample(mo,ds);
-                [~,stat,~] = ModelGof(nm,ds,1); % get the statistic for the true parms
-                if isinf(stat) || isnan(stat)
+                [~,stat,thresh] = ModelGof(nm,ds,1); % get the statistic for the true parms
+                if isinf(stat) || isnan(thresh)
                     continue;
                 end
             end

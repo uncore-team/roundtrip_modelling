@@ -84,7 +84,7 @@ function [reject,stat,thresh]=LoglogisticGoF(x,a,b,c,modelnotfromdata)
     Z = 1./(1 + exp(-(xL-mu)./s)); % cdf formula for logistic
 
     % ---- calculate statistic: A2 
-    A2 = ADstatistic(Z);
+    A2 = statisticA2(Z);
     if isnan(A2) % that model cannot assess these data
         reject = 1;
         stat = Inf;

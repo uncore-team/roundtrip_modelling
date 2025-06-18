@@ -14,7 +14,7 @@ function [reject,stat,thresh] = ExponentialGof(x,alpha,beta,modelnotfromdata)
     Z = 1 - exp(-wsorted);
 
     % ---- calculate A2 statistic
-    A2 = ADstatistic(Z);
+    A2 = statisticA2(Z);
     if isnan(A2) % that model cannot assess these data
         reject = 1;
         stat = Inf;

@@ -69,7 +69,7 @@ function [reject,stat,thresh,numsanitized] = LognormalGof(x,offset,mu,sigma,mode
     logxord = log(xord - offset); % still ordered, now unshifted and normal
     w = (logxord - mu) / sigma; % still ordered
     Z = normcdf(w,0,1); % still ordered
-    A2 = ADstatistic(Z);
+    A2 = statisticA2(Z);
     if isnan(A2) % that model could not assess these data
         reject = 1;
         stat = Inf;
