@@ -58,97 +58,57 @@ function [reject,stat,thresh]=LoglogisticGoF(x,a,b,c,modelnotfromdata)
 % modelnotfromdata -> 1 if the parameters do not come from sample; 0 if they have
 %                  been calculated from the same sample.
 
-    if (a < 0) 
-        error('Invalid loglogistic distr.');
-    end
+    LoglogisticCheckParms(a,b,c);
 
     n = numel(x);
     x = reshape(x,1,n); % force X is a row vector
 
     % ---- transform sample to LL2 (0 offset) and model (a,b,c) into Matlab model (mu,sigma)
-    xLL = sort(x); % ordered needed later on
-    if (xLL(1) <= a)
-    	reject = 1; % cannot accept a distribution if some value falls below or at its minimum
-    	stat = Inf;
-
-    	thresh = NaN;
-    	return;
-    end
-    xL = log(xLL - a); % since XLL is ordered and log does not change the order, xL is ordered
+    xL = log(x - a); % de-shift and de-exp
     mu = log(b); % converting from a,b,c to D'Agostino (alpha in the book), which uses the same as Matlab
     s = c; % converting from a,b,c to D'Agostino (beta in the book), which uses the same as Matlab
 
     % ---- calculate a new random variable Z (p. 160) that has uniform distribution in [0,1]
     % if the theoretical model (mu,sigma) is true (p. 101)
-    % NOTE: Here, xL must be ordered 
     Z = 1./(1 + exp(-(xL-mu)./s)); % cdf formula for logistic
 
     % ---- calculate statistic: A2 
     [kindstat,stat]  = StatisticGof(Z);
-    % if isnan(A2) % that model cannot assess these data
-    %     reject = 1;
-    %     stat = Inf;
-    %     thresh = NaN;
-    %     return;
-    % end
-    if ~modelnotfromdata
-        % do the following only if parameters come from sample:
-        A2 = A2*(1+.25/n);  % correction needed because both parameters are deduced from the same sample, table 4.22 case 3
-    end
-    stat = A2; % this statistic follows certain right-tailed distribution. We can set in
-               % that distribution a threshold value (in its support)
-               % corresponding to a given significance level. 
-               % Then, if the value calculated for the statistic falls 
-               % above that threshold, the hypothesis should be rejected
-               % (this is easier as the significance level grows).
-               % The p-value is the probability of the statistic distribution to
-               % produce a value of the statistic equal to or greater than the
-               % calculated one. The p-value will shrink as more strongly rejected
-               % is the null hypothesis. We do not calculate it here
-               % because the distribution of the statistic is not found in
-               % the book.
-    
-    % ---- test the hypothesis 
-    if modelnotfromdata
-        thresh = 2.492; % for the case that parameters do not come from sample; 0.05, p. 105, table 4.2, right tail
-                        % Confirmed by MonteCarlo (test_tabulategofthrs.m)
-    else
+    if strcmp(kindstat,'A2')
 
-        % the following is D'Agostino but does not work for use since he
-        % assumes only 2 parameters unknown, but we have 3; thus we have
-        % conducted new MonteCarlo experiments to deduce the threshold in
-        % this case
-        %
-        % thresh = 0.660; % threshold for the case of parameters coming from sample; 0.05 significance level; page 157, table 4.22, case 3
-
-        % MonteCarlo results in test_tabulategofthrs.m; fitting at the end
-        % section of that script:
-
-        if n < 90 % firs part: 5th poly
-
-            parms = [-0.000000000421424;0.000000118010409;-0.000004990075374;-0.001491034210112;0.192700180267995;-0.707864114472733];
-            thresh = parms(1) * n^5 + parms(2) * n^4 + parms(3) * n^3 + parms(4) * n^2 + parms(5) * n + parms(6);
-
-        elseif n < 120 % link between first and second part: linear interpolation
-
-            x1 = 90;
-            y1 = 6.174206416983618; % value of the first part at 90
-            x2 = 120;
-            y2 = 6.237947960378145; % value of the second part at 120
-            thresh = (y2 - y1)/(x2 - x1) * (n - x1) + y1;
-
-        elseif n < 380 % second part: horizontal
-
-            thresh = 6.237947960378145;
-
-        else % third part: decaying linear
-
-            m = -0.002007806860578; % slope of a line that starts at x = 0
-            thresh = m * (n - 380) + 6.237947960378145; % line that starts at n = 380 (second part)
+        if modelnotfromdata
+            % no correction of stat in this case (see table 4.2 D'Agostino)
+            thresh = 2.492; % for the case that parameters do not come from sample; 0.05, p. 105, table 4.2, right tail
+                            % Confirmed by MonteCarlo (test_tabulategofthrs.m)
+        else % model comes from data
+            % do the following only if parameters come from sample
+            % correction needed because both parameters are deduced from the same sample, table 4.22 case 3
+            stat = stat*(1+.25/n);  
+            % the following is D'Agostino but does not work for use since he
+            % assumes only 2 parameters unknown, but we have 3; thus we have
+            % conducted new MonteCarlo experiments to deduce the threshold in
+            % this case
+            thresh = 0.660; % threshold for the case of parameters coming from sample; 0.05 significance level; page 157, table 4.22, case 3
 
         end
 
-    end 
+    elseif strcmp(kindstat,'W2')
+
+        if modelnotfromdata
+            % correction if parms are true (not from sample); table 4.2
+            % D'Agostino
+            stat = (stat - 0.4/n + 0.6/n^2) * (1 + 1/n);
+            thresh = 0.461;
+        else % model comes from data
+            % the following is D'Agostino table 4.22
+            stat = (n * stat - 0.08) / (n - 1);
+            thresh = 0.098;
+        end
+
+    else
+        error('Unknown gof statistic');
+    end
+
     if (stat > thresh) % equivalently, the p-value is smaller than the significant level
         reject=1; % reject
     else
