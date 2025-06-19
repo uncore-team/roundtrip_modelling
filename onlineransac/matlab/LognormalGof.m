@@ -105,7 +105,7 @@ function [reject,stat,thresh] = LognormalGof(x,offset,mu,sigma,modelnotfromdata)
             end
             
             if length(parts) == 1
-                y(f) = polyval(coeffsparts{parts(1)},n);
+                thresh = polyval(coeffsparts{parts(1)},n);
             else
                 poly1 = polyval(coeffsparts{parts(1)},n);
                 poly2 = polyval(coeffsparts{parts(2)},n);     
