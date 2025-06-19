@@ -116,8 +116,8 @@ figure;
 subplot(1,2,1);
 plot(samplesizes,results,'b.');
 hold on;
-ys = movmean(results,25);
-plot(samplesizes,ys,'r.-');
+%ys = movmean(results,25);
+%plot(samplesizes,ys,'r.-');
 grid;
 xlabel('sample size');
 ylabel('threshold for gof');
@@ -139,37 +139,24 @@ return;
 close all;
 clc;
 
-part1end = find(samplesizes == 72,1);
-coeffs1 = [-0.000737065644440   0.184544019197911   1.144649233557212]; % a quadratic fit done with the basic fitting of the figure; get a norm of residuals = 0.288
+part1end = find(samplesizes == 600,1);
+coeffs1 = [0.000000000000291  -0.000000000525001   0.000000372697872  -0.000130474298915   0.029244137137401   0.361152490347344]; % a 5th deg pol; get a norm of residuals = 0.59
 plotpolyfit(samplesizes,results,1,part1end,coeffs1,'part 1');
 
-part2end = find(samplesizes == 120,1);
-coeffs2 = [-0.000054441897049   0.018475635035727  -2.149691220487750  89.985450676534995]; % cubic fitting; normresid = 0.312693333622991
+part2end = length(samplesizes);
+coeffs2 = [-0.000000000036426   0.000000928221916   0.018878529322011  -5.955872518883343]; % cubic fitting with normresid = 29.65
 plotpolyfit(samplesizes,results,part1end,part2end,coeffs2,'part 2');
 
-part3end = find(samplesizes == 680,1);
-coeffs3 = [-0.000000000001180   0.000000002636083  -0.000002240327089   0.000918517509819  -0.174031641455638  14.974327904387987]; % 5th polynomial; normresid = 13.494
-plotpolyfit(samplesizes,results,part2end,part3end,coeffs3,'part 3');
-
-part4end = find(samplesizes == 1020,1); 
-coeffs4 = [-0.0000007674684   0.0019230494045  -1.5058287142259   385.6552504121422]; % cubic fitting with normres = 97.6
-plotpolyfit(samplesizes,results,part3end,part4end,coeffs4,'part 4');
-
-part5end = length(samplesizes);
-coeffs5 = [0.000000000044030  -0.000000977059096   0.051670442087110 -13.899828584965791]; % cubic fitting with normresid = 129.06
-plotpolyfit(samplesizes,results,part4end,part5end,coeffs5,'part 5');
-
-numparts = 5;
+numparts = 2;
 
 transweight = @(x,k,transitionpoint) 1 ./ (1 + exp(-k * (x - transitionpoint)));
 ks = 0.05 * ones(1,numparts - 1); % transition weights from one part to the next
-ks(1) = 1;
-ks(2) = 0.5;
 
 % --- blending of the polynomials
 
-endspartsss = samplesizes([part1end,part2end,part3end,part4end,part5end]);
-coeffsparts = {coeffs1,coeffs2,coeffs3,coeffs4,coeffs5};
+endsparts = [part1end,part2end];
+endspartsss = samplesizes([part1end,part2end]);
+coeffsparts = {coeffs1,coeffs2};
 
 ninds = length(samplesizes);
 x = samplesizes;
@@ -184,17 +171,8 @@ for f = 1:ninds
     elseif ss <= (endspartsss(1) + endspartsss(2))/2
         parts = [1,2];
         transitionpoint = endspartsss(1);
-    elseif ss <= (endspartsss(2) + endspartsss(3))/2
-        parts = [2,3];
-        transitionpoint = endspartsss(2);
-    elseif ss <= (endspartsss(3) + endspartsss(4))/2
-        parts = [3,4];
-        transitionpoint = endspartsss(3);
-    elseif ss <= (endspartsss(4) + endspartsss(5))/2
-        parts = [4,5];
-        transitionpoint = endspartsss(4);
     else
-        parts = [5];
+        parts = [2];
     end
     
     if length(parts) == 1
@@ -215,10 +193,10 @@ for f = 2:numparts
     plot(samplesizes(endsparts(f-1):endsparts(f)),results(endsparts(f-1):endsparts(f)),'.');
     plot(ones(1,2) * samplesizes(endsparts(f-1)),[min(results),max(results)],'--');
 end
-%plot(x,y,'o-');
-scatter(x,y,36,w,'filled');  % 36 is the marker size
-colormap(parula);
-colorbar;
+plot(x,y,'o-');
+%scatter(x,y,36,w,'filled');  % 36 is the marker size
+%colormap(parula);
+%colorbar;
 xlabel('samplesizes');
 ylabel('threshold');
 title('blended fitting');

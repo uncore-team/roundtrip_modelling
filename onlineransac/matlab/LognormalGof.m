@@ -77,11 +77,42 @@ function [reject,stat,thresh] = LognormalGof(x,offset,mu,sigma,modelnotfromdata)
             % correction if parms are true (not from sample); table 4.2
             % D'Agostino
             stat = (stat - 0.4/n + 0.6/n^2) * (1 + 1/n);
-            thresh = 0.461;
+            thresh = 0.461;  % we have confirmed this value with MonteCarlo (test_tabulategofthrs.m)
         else % model comes from data
             % the following is D'Agostino table 4.7, upper tail
             stat = stat * (1 + 0.5/n);
-            thresh = 0.117;
+
+            % This is from D'Agostino, but does not work well for us since
+            % D'Agostino reports for the Normal, not for the Lognormal.
+            % thresh = 0.117;
+
+            % This is the rsult of MonteCarlo of test_tabulate... :
+
+            coeffs1 = [0.000000000000291  -0.000000000525001   0.000000372697872  -0.000130474298915   0.029244137137401   0.361152490347344]; % a 5th deg pol; get a norm of residuals = 0.59
+            coeffs2 = [-0.000000000036426   0.000000928221916   0.018878529322011  -5.955872518883343]; % cubic fitting with normresid = 29.65
+            numparts = 2;
+            transweight = @(x,k,transitionpoint) 1 ./ (1 + exp(-k * (x - transitionpoint)));
+            ks = 0.05 * ones(1,numparts - 1); % transition weights from one part to the next
+            endspartsss = [600,10000];
+            coeffsparts = {coeffs1,coeffs2};
+            if n <= endspartsss(1)/2 
+                parts = [1]; % polynomials to weld
+            elseif n <= (endspartsss(1) + endspartsss(2))/2
+                parts = [1,2];
+                transitionpoint = endspartsss(1);
+            else
+                parts = [2];
+            end
+            
+            if length(parts) == 1
+                y(f) = polyval(coeffsparts{parts(1)},n);
+            else
+                poly1 = polyval(coeffsparts{parts(1)},n);
+                poly2 = polyval(coeffsparts{parts(2)},n);     
+                w = transweight(n,ks(parts(1)),transitionpoint);
+                thresh = poly1 * (1 - w) + poly2 * w;
+            end
+
         end
 
     else

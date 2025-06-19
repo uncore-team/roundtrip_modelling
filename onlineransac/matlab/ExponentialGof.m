@@ -39,11 +39,11 @@ function [reject,stat,thresh] = ExponentialGof(x,alpha,beta,modelnotfromdata)
             % correction if parms are true (not from sample); table 4.2
             % D'Agostino
             stat = (stat - 0.4/n + 0.6/n^2) * (1 + 1/n);
-            thresh = 0.461;
+            thresh = 0.461; % we have confirmed this value with MonteCarlo (test_tabulategofthrs.m)
         else % model comes from data
             % correction if parms come from sample; table 4.14 D'Agostino
             stat = stat * (1 + 2.8/n - 3/n^2);
-            thresh = 0.222;
+            thresh = 0.222; % we have confirmed this value with MonteCarlo (test_tabulategofthrs.m)
         end
 
     else
