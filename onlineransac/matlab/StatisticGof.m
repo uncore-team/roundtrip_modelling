@@ -39,20 +39,25 @@ function [kind,stat] = StatisticGof(Z)
     Zsorted = sort(Z);
     is = 1:n;
     
-    if (Zsorted(1) < eps) || (1 - Zsorted(end) < eps) 
+
+    % WE ONLY KEEP W2 STATISTIC SINCE WHEN MIXING SEVERAL DIFFERENT STATS
+    % IT IS DIFFICULT / ILL-FORMED TO HAVE ONLY ONE THRESHOLD
+
+    
+%    if (Zsorted(1) < eps) || (1 - Zsorted(end) < eps) 
 
         % W2 statistic (valid for samples that have 0 or 1 in Z)
         sumatoria = sum((Zsorted - (2*is - 1)/(2 * n)).^2); % p. 101, formula 4.2
         stat = sumatoria + 1/(12 * n);
         kind = 'W2';
 
-    else 
-
-        % A2 statistic (cannot work with samples that have 0 or 1 Z values)
-        sumatoria = sum((is*2-1).*log(Zsorted)+(2*n+1-2*is).*log(1-Zsorted)); % page 101, bottom formula
-        stat = -n - (1/n)* sumatoria;
-        kind = 'A2';
-
-    end
+    % else 
+    % 
+    %     % A2 statistic (cannot work with samples that have 0 or 1 Z values)
+    %     sumatoria = sum((is*2-1).*log(Zsorted)+(2*n+1-2*is).*log(1-Zsorted)); % page 101, bottom formula
+    %     stat = -n - (1/n)* sumatoria;
+    %     kind = 'A2';
+    % 
+    % end
 
 end

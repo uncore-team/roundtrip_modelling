@@ -3,6 +3,7 @@ function [reject,stat,thresh] = LognormalGof(x,offset,mu,sigma,modelnotfromdata)
     LognormalCheckParms(offset,mu,sigma);
 
     n = numel(x);
+    x = reshape(x,1,n); % force X is a row vector
 
 % % Taken from https://es.mathworks.com/matlabcentral/fileexchange/60147-normality-test-package
 % % Paper of 2017 in tyrell project /ejecucion/docs/A Compilation of Some Popular Goodness of Fit Tests for Normal Distribution.pdf

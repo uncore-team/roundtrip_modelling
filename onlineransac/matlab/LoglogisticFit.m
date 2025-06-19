@@ -73,30 +73,29 @@ global TOLROUNDTRIPS
     c = xx(3);
     
     % some post-security checks that display warnings (should not happen)
-	smallval=1e-9;
     if (a<=0.0) 
         if (debug==1)
             fprintf('A!');
         end
-        a=smallval;
+        a=TOLROUNDTRIPS;
     end
     if (a>=minx) 
         if (debug==1)
             fprintf('M!');
         end
-        a=minx-smallval;
+        a=minx-TOLROUNDTRIPS;
     end
     if (b<=0.0) 
         if (debug==1)
             fprintf('B!');
         end
-        b=smallval;
+        b=TOLROUNDTRIPS;
     end
     if (c<=0.0) 
         if (debug==1)
             fprintf('C!');
         end
-        c=smallval;
+        c=TOLROUNDTRIPS;
     end
 
 end
