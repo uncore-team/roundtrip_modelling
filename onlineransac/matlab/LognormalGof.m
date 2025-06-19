@@ -68,6 +68,11 @@ function [reject,stat,thresh] = LognormalGof(x,offset,mu,sigma,modelnotfromdata)
             % correction: A2 for case 3 (both parameters were deduced from the same sample). 
             % the following is D'Agostino table 4.7, upper tail
             stat = stat * (1 + 0.75/n + 2.25/n^2);
+            % no montecarlo has been done for this since we have turned to W2,
+            % thus this does not work! The reason is that we use a modified
+            % lognormalFit for estimating the offset, and also (likely)
+            % D'Agostino uses a normal with 2 parameters but we have a
+            % lognormal with 3.
             thresh = 0.752; 
         end
 
@@ -86,7 +91,8 @@ function [reject,stat,thresh] = LognormalGof(x,offset,mu,sigma,modelnotfromdata)
             % D'Agostino reports for the Normal, not for the Lognormal.
             % thresh = 0.117;
 
-            % This is the rsult of MonteCarlo of test_tabulate... :
+
+            % This works well; it is the result of MonteCarlo of test_tabulate... :
 
             coeffs1 = [0.000000000000291  -0.000000000525001   0.000000372697872  -0.000130474298915   0.029244137137401   0.361152490347344]; % a 5th deg pol; get a norm of residuals = 0.59
             coeffs2 = [-0.000000000036426   0.000000928221916   0.018878529322011  -5.955872518883343]; % cubic fitting with normresid = 29.65
@@ -102,8 +108,9 @@ function [reject,stat,thresh] = LognormalGof(x,offset,mu,sigma,modelnotfromdata)
                 transitionpoint = endspartsss(1);
             else
                 parts = [2];
-            end
-            
+            end            
+            % beyond 10000 it also work (tested with some sampling of that
+            % area in test_tabulate...)
             if length(parts) == 1
                 thresh = polyval(coeffsparts{parts(1)},n);
             else

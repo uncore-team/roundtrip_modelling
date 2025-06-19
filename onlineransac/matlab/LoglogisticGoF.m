@@ -84,10 +84,9 @@ function [reject,stat,thresh]=LoglogisticGoF(x,a,b,c,modelnotfromdata)
             % do the following only if parameters come from sample
             % correction needed because both parameters are deduced from the same sample, table 4.22 case 3
             stat = stat*(1+.25/n);  
-            % the following is D'Agostino but does not work for use since he
-            % assumes only 2 parameters unknown, but we have 3; thus we have
-            % conducted new MonteCarlo experiments to deduce the threshold in
-            % this case
+            % the following is D'Agostino but does not work well; no
+            % montecarlo has been done for this since we have turned to W2,
+            % thus this will not work!
             thresh = 0.660; % threshold for the case of parameters coming from sample; 0.05 significance level; page 157, table 4.22, case 3
 
         end
@@ -98,7 +97,7 @@ function [reject,stat,thresh]=LoglogisticGoF(x,a,b,c,modelnotfromdata)
             % correction if parms are true (not from sample); table 4.2
             % D'Agostino
             stat = (stat - 0.4/n + 0.6/n^2) * (1 + 1/n);
-            thresh = 0.461;
+            thresh = 0.461; % we have confirmed this value with MonteCarlo (test_tabulategofthrs.m)
         else % model comes from data
             % the following is D'Agostino table 4.22
             stat = (n * stat - 0.08) / (n - 1);

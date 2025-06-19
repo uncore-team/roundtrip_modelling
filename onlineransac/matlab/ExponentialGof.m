@@ -21,6 +21,8 @@ function [reject,stat,thresh] = ExponentialGof(x,alpha,beta,modelnotfromdata)
     	    thresh = 2.492; % known parameters (n>=5)
                             % table 4.2 D'Agostino; confirmed with MonteCarlo
                             % experiments (test_tabulategofthrs.m)
+                            % not confirmed with MonteCarlo but likely to
+                            % work.
         else % model comes from data
             % correction: A2 for case 3 (both parameters were deduced from the same sample). 
             % do the following since parameters come from sample (D'Agostino table 4.14)
@@ -30,7 +32,7 @@ function [reject,stat,thresh] = ExponentialGof(x,alpha,beta,modelnotfromdata)
             % conducted new MonteCarlo experiments to deduce the threshold in
             % this case in test_tabulategofthrs.m and got the same threshold
             % for sample sizes ranging from 20 to 10000.            
-            thresh = 1.321; 
+            thresh = 1.321; % not confirmed with MonteCarlo but likely to work
         end
 
     elseif strcmp(kindstat,'W2')
